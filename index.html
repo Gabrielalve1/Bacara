@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Baccarat Master AI Turbo</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; }
+    h1 { color: #00ffcc; }
+    input, button { padding: 10px; margin: 10px; font-size: 16px; }
+    #output { margin-top: 20px; font-size: 20px; font-weight: bold; }
+    .player { color: #00ffcc; }
+    .banker { color: #ff0066; }
+    .tie { color: #ffff00; }
+    #history { margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <h1>Baccarat Master AI Turbo</h1>
+  <p>Insira o link de um site de gráficos abaixo:</p>
+  <input type="text" id="link" placeholder="Cole o link aqui">
+  <button id="startBtn">Iniciar Análise</button>
+  <div id="output">Nenhuma análise ainda.</div>
+  <div id="history"></div>
+
+  <script>
+    let intervalId;
+
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'pt-BR';
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    async function analisar(link) {
+      try {
+        const response = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(link));
+        const data = await response.json();
+        const html = data.contents;
+
+        // Simulação de análise (igual ao seu original)
+        let resultado = "";
+        const r = Math.random();
+        if (r < 0.45) resultado = "Jogador";
+        else if (r < 0.9) resultado = "Banker";
+        else resultado = "Empate";
+
+        let colorClass = resultado === "Jogador" ? "player" : resultado === "Banker" ? "banker" : "tie";
+
+        document.getElementById("output").innerHTML = `<span class="${colorClass}">Recomendação: ${resultado}</span>`;
+        document.getElementById("history").innerHTML += `<div class="${colorClass}">${resultado}</div>`;
+        speak(`Recomendação: ${resultado}`);
+      } catch (e) {
+        document.getElementById("output").innerHTML = "Erro ao analisar o link.";
+      }
+    }
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+      const link = document.getElementById("link").value;
+      if (!link) {
+        document.getElementById("output").innerHTML = "Por favor, insira um link.";
+        return;
+      }
+      if (intervalId) clearInterval(intervalId);
+      analisar(link); // primeira análise imediata
+      intervalId = setInterval(() => analisar(link), 10000); // repete a cada 10s
+    });
+  </script>
+</body>
+</html>
