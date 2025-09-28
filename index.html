@@ -6,7 +6,7 @@
 <style>
   body { background:#111; color:#fff; font-family:Arial; text-align:center; }
   h1 { color:#00ffcc; }
-  button { padding:10px 20px; font-size:16px; margin:5px; }
+  input, button { padding:10px 20px; font-size:16px; margin:5px; }
   #output { margin-top:20px; font-size:24px; font-weight:bold; }
   .player { color:#00ffcc; }
   .banker { color:#ff0066; }
@@ -20,9 +20,11 @@
 </head>
 <body>
 <h1>🔮 Baccarat Master AI - Treinamento</h1>
-<div id="output">Clique em "Iniciar" para começar</div>
-<div id="timer"></div>
+<input type="text" id="link" placeholder="Cole o link do gráfico aqui" size="50">
 <button id="startBtn">▶ Iniciar</button>
+
+<div id="output">Aguardando início...</div>
+<div id="timer"></div>
 <button id="acertouBtn" disabled>Acertou</button>
 <button id="errouBtn" disabled>Errou</button>
 <div id="history"></div>
@@ -34,15 +36,37 @@ let recomendacaoAtual = "";
 let timerInterval;
 let contador = 10;
 
-function gerarRecomendacao() {
-  const r = Math.random();
-  if (r < 0.45) return "Jogador";
-  if (r < 0.9) return "Banker";
-  return "Empate";
+async function gerarRecomendacao() {
+  const link = document.getElementById("link").value;
+  if (!link) {
+    alert("Cole um link válido!");
+    return "Jogador"; // fallback
+  }
+
+  try {
+    const res = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(link));
+    const data = await res.json();
+    const html = data.contents;
+
+    // Análise simples: procura palavras-chave
+    if (/player/i.test(html)) return "Jogador";
+    if (/banker/i.test(html)) return "Banker";
+    if (/tie|empate/i.test(html)) return "Empate";
+    
+    // fallback aleatório se nada encontrado
+    const r = Math.random();
+    if (r < 0.45) return "Jogador";
+    if (r < 0.9) return "Banker";
+    return "Empate";
+
+  } catch (err) {
+    console.error(err);
+    return "Jogador"; // fallback
+  }
 }
 
-function mostrarRecomendacao() {
-  recomendacaoAtual = gerarRecomendacao();
+async function mostrarRecomendacao() {
+  recomendacaoAtual = await gerarRecomendacao();
   const classe = recomendacaoAtual === "Jogador" ? "player" :
                  recomendacaoAtual === "Banker" ? "banker" : "tie";
   document.getElementById("output").innerHTML = `<span class="${classe}">${recomendacaoAtual}</span>`;
@@ -74,24 +98,20 @@ function registrarResultado(acertou) {
   if (galeAtivo) {
     classe = "gale";
     texto += " (Gale)";
-    galeAtivo = false; // reset do Gale
+    galeAtivo = false;
   } else if (!acertou) {
-    galeAtivo = true; // ativa Gale para próxima
+    galeAtivo = true;
   }
 
   history.innerHTML += `<div class="${classe}">Rodada: ${recomendacaoAtual} → ${texto}</div>`;
   history.scrollTop = history.scrollHeight;
-  mostrarRecomendacao(); // gera nova recomendação
+  mostrarRecomendacao();
 }
 
-document.getElementById("startBtn").addEventListener("click", () => {
-  mostrarRecomendacao();
-});
-
+document.getElementById("startBtn").addEventListener("click", () => mostrarRecomendacao());
 document.getElementById("acertouBtn").addEventListener("click", () => {
   if (!rodadaAtiva) registrarResultado(true);
 });
-
 document.getElementById("errouBtn").addEventListener("click", () => {
   if (!rodadaAtiva) registrarResultado(false);
 });
