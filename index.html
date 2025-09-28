@@ -1,50 +1,100 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Baccarat Master AI Turbo</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; }
-    h1 { color: #00ffcc; }
-    input, button { padding: 10px; margin: 10px; font-size: 16px; }
-    #output { margin-top: 20px; font-size: 20px; font-weight: bold; }
-    .player { color: #00ffcc; }
-    .banker { color: #ff0066; }
-    .tie { color: #ffff00; }
-  </style>
+<meta charset="UTF-8">
+<title>Baccarat Master AI - Treinamento</title>
+<style>
+  body { background:#111; color:#fff; font-family:Arial; text-align:center; }
+  h1 { color:#00ffcc; }
+  button { padding:10px 20px; font-size:16px; margin:5px; }
+  #output { margin-top:20px; font-size:24px; font-weight:bold; }
+  .player { color:#00ffcc; }
+  .banker { color:#ff0066; }
+  .tie { color:#ffff00; }
+  #timer { font-size:20px; margin-top:10px; }
+  #history { margin-top:20px; text-align:left; max-height:250px; overflow-y:auto; background:#222; padding:10px; border-radius:8px; }
+  .acerto { color:#00ff00; }
+  .erro { color:#ff0000; }
+  .gale { color:#1e90ff; }
+</style>
 </head>
 <body>
-  <h1>Baccarat Master AI Turbo</h1>
-  <p>Insira o link de um site de gráficos abaixo para análise:</p>
-  <input type="text" id="link" placeholder="Cole o link aqui">
-  <button onclick="analisar()">Analisar</button>
-  <div id="output">Nenhuma análise ainda.</div>
+<h1>🔮 Baccarat Master AI - Treinamento</h1>
+<div id="output">Clique em "Iniciar" para começar</div>
+<div id="timer"></div>
+<button id="startBtn">▶ Iniciar</button>
+<button id="acertouBtn" disabled>Acertou</button>
+<button id="errouBtn" disabled>Errou</button>
+<div id="history"></div>
 
-  <script>
-    async function analisar() {
-      const link = document.getElementById("link").value;
-      if (!link) {
-        document.getElementById("output").innerHTML = "Por favor, insira um link.";
-        return;
-      }
-      try {
-        // Proxy para evitar bloqueio CORS
-        const response = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(link));
-        const data = await response.json();
-        const html = data.contents;
+<script>
+let rodadaAtiva = false;
+let galeAtivo = false;
+let recomendacaoAtual = "";
+let timerInterval;
+let contador = 10;
 
-        // Simulação de análise
-        let resultado = "";
-        const r = Math.random();
-        if (r < 0.45) resultado = "<span class='player'>Recomendação: Jogador</span>";
-        else if (r < 0.9) resultado = "<span class='banker'>Recomendação: Banqueiro</span>";
-        else resultado = "<span class='tie'>Recomendação: Empate</span>";
+function gerarRecomendacao() {
+  const r = Math.random();
+  if (r < 0.45) return "Jogador";
+  if (r < 0.9) return "Banker";
+  return "Empate";
+}
 
-        document.getElementById("output").innerHTML = resultado;
-      } catch (e) {
-        document.getElementById("output").innerHTML = "Erro ao analisar o link.";
-      }
+function mostrarRecomendacao() {
+  recomendacaoAtual = gerarRecomendacao();
+  const classe = recomendacaoAtual === "Jogador" ? "player" :
+                 recomendacaoAtual === "Banker" ? "banker" : "tie";
+  document.getElementById("output").innerHTML = `<span class="${classe}">${recomendacaoAtual}</span>`;
+  rodadaAtiva = true;
+  contador = 10;
+  document.getElementById("acertouBtn").disabled = true;
+  document.getElementById("errouBtn").disabled = true;
+  iniciarContador();
+}
+
+function iniciarContador() {
+  document.getElementById("timer").innerText = `Tempo até próxima partida: ${contador}s`;
+  timerInterval = setInterval(() => {
+    contador--;
+    document.getElementById("timer").innerText = `Tempo até próxima partida: ${contador}s`;
+    if (contador <= 0) {
+      clearInterval(timerInterval);
+      rodadaAtiva = false;
+      document.getElementById("acertouBtn").disabled = false;
+      document.getElementById("errouBtn").disabled = false;
     }
-  </script>
+  }, 1000);
+}
+
+function registrarResultado(acertou) {
+  const history = document.getElementById("history");
+  let classe = acertou ? "acerto" : "erro";
+  let texto = acertou ? "Acertou" : "Errou";
+  if (galeAtivo) {
+    classe = "gale";
+    texto += " (Gale)";
+    galeAtivo = false; // reset do Gale
+  } else if (!acertou) {
+    galeAtivo = true; // ativa Gale para próxima
+  }
+
+  history.innerHTML += `<div class="${classe}">Rodada: ${recomendacaoAtual} → ${texto}</div>`;
+  history.scrollTop = history.scrollHeight;
+  mostrarRecomendacao(); // gera nova recomendação
+}
+
+document.getElementById("startBtn").addEventListener("click", () => {
+  mostrarRecomendacao();
+});
+
+document.getElementById("acertouBtn").addEventListener("click", () => {
+  if (!rodadaAtiva) registrarResultado(true);
+});
+
+document.getElementById("errouBtn").addEventListener("click", () => {
+  if (!rodadaAtiva) registrarResultado(false);
+});
+</script>
 </body>
 </html>
