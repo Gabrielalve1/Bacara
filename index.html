@@ -1,77 +1,175 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Baccarat & Roleta Analisador</title>
-  <style>
-    body { background:#111; color:#fff; font-family:Arial; text-align:center; }
-    h1 { color:#00ffcc; }
-    input, button { padding:10px; font-size:16px; margin:5px; }
-    #output { margin-top:20px; font-size:18px; text-align:left; background:#222; padding:15px; border-radius:8px; }
-    .player { color:#00ffcc; }
-    .banker { color:#ff0066; }
-    .tie { color:#ffff00; }
-    .number { color:#1e90ff; font-weight:bold; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Baccarat — Versão Realista</title>
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#071226;color:#eaf7ff;padding:12px}
+  h1{color:#ffd36b;margin:0 0 8px}
+  input,select,textarea,button{width:100%;padding:10px;margin-top:8px;border-radius:8px;border:0;background:#0d2230;color:#eaf7ff}
+  .row{display:flex;gap:8px;margin-top:8px}
+  .col{flex:1}
+  .btn{background:#0f4b5a;color:#ffd36b;border-radius:8px;padding:10px;border:0;cursor:pointer}
+  .rec{margin-top:12px;padding:12px;border-radius:10px;text-align:center;font-weight:900}
+  .player{background:#49a9ff;color:#021b2a}
+  .banker{background:#ff5a6d;color:#210606}
+  .tie{background:#c6ffb3;color:#072206}
+  pre{background:#021018;padding:8px;border-radius:8px;max-height:220px;overflow:auto;margin-top:8px}
+  .muted{color:#9fb4d8;font-size:13px;margin-top:8px}
+</style>
 </head>
 <body>
-  <h1>🔮 Analisador Automático</h1>
-  <p>Cole o link do jogo/roleta:</p>
-  <input type="text" id="link" placeholder="Cole o link aqui" size="50">
-  <button onclick="start()">▶ Iniciar</button>
+  <h1>Baccarat — Realista</h1>
+  <div class="muted">Cole o link e, se souber, um selector CSS que contenha o histórico. Se o site for dinâmico, use fallback manual.</div>
+  <input id="link" placeholder="Link do gráfico (ex: https://...)" />
+  <input id="proxy" placeholder="Proxy (opcional). Ex: https://meu-proxy/fetch?url=" />
+  <input id="selector" placeholder="Selector CSS (opcional) ex: .history" />
+  <div class="row">
+    <div class="col"><select id="interval"><option value="2000">2s</option><option value="5000" selected>5s</option></select></div>
+    <div class="col"><button id="start" class="btn">Iniciar</button></div>
+    <div class="col"><button id="stop" class="btn" disabled>Parar</button></div>
+  </div>
 
-  <div id="output">Aguardando início...</div>
+  <div class="muted">Ou cole sequência manual:</div>
+  <textarea id="manual" placeholder="P,B,P,T,B"></textarea>
+  <button id="analyzeManual" class="btn">Analisar Manual</button>
 
-  <script>
-    let interval;
+  <div id="rec" class="rec">—</div>
+  <div id="conf" class="muted">Confiança: —</div>
+  <pre id="debug">Debug: aguardando</pre>
 
-    async function analisar(url) {
-      try {
-        // TROQUE AQUI PELA SUA API DO VERCEL:
-        const api = "https://seu-projeto.vercel.app/api/scrape?url=" + encodeURIComponent(url);
-        const res = await fetch(api);
-        const data = await res.json();
+<script>
+const DEFAULT_PROXIES = [
+  (u)=>`https://proxy-baccarate-14co.vercel.app/fetch?url=${encodeURIComponent(u)}`,
+  (u)=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  (u)=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+];
 
-        if (!data.ok) {
-          document.getElementById("output").innerHTML = "❌ Erro: " + (data.error || "falha na análise");
-          return;
-        }
+let monitor = null, series = [];
 
-        let html = "<h3>📊 Resultado da análise</h3>";
-        if (data.tokensDetected && data.tokensDetected.length > 0) {
-          html += "<p>🃏 Baccarat detectado:<br>";
-          html += data.tokensDetected.map(t => {
-            if (/player/i.test(t)) return `<span class='player'>${t}</span>`;
-            if (/banker/i.test(t)) return `<span class='banker'>${t}</span>`;
-            if (/tie|empate/i.test(t)) return `<span class='tie'>${t}</span>`;
-            return t;
-          }).join(" ");
-          html += "</p>";
-        }
+function normTok(s){
+  if(!s) return null;
+  s = String(s).trim().toUpperCase();
+  if(/^P/.test(s)) return 'P';
+  if(/^B/.test(s)) return 'B';
+  if(/^T/.test(s)) return 'T';
+  const m = s.match(/[PBT]/i);
+  return m ? m[0].toUpperCase() : null;
+}
+function parseSeq(s){
+  if(!s) return [];
+  return s.replace(/\r\n/g,',').replace(/[;|\/\\]+/g,',').replace(/\s+/g,',').split(',').map(x=>normTok(x)).filter(Boolean);
+}
+async function fetchWithTimeout(url, timeout=7000){
+  const c = new AbortController(); const id = setTimeout(()=>c.abort(), timeout);
+  try{ const res = await fetch(url, {signal:c.signal}); clearTimeout(id); if(!res.ok) throw new Error('HTTP '+res.status); return await res.text(); } finally { clearTimeout(id); }
+}
+async function fetchThroughProxies(orig, userProxy){
+  const list = [];
+  if(userProxy) list.push((u)=> userProxy + encodeURIComponent(u));
+  DEFAULT_PROXIES.forEach(f=>list.push(f));
+  let lastErr = null;
+  for(const b of list){
+    const tryUrl = b(orig);
+    try{
+      const txt = await fetchWithTimeout(tryUrl);
+      return {text: txt, used: tryUrl};
+    }catch(e){ lastErr = e; await new Promise(r=>setTimeout(r,200)); }
+  }
+  throw lastErr || new Error('No proxy worked');
+}
 
-        if (data.numbersDetected && data.numbersDetected.length > 0) {
-          html += "<p>🎲 Roleta detectada:<br>";
-          html += data.numbersDetected.map(n => `<span class='number'>${n}</span>`).join(" ");
-          html += "</p>";
-        }
-
-        document.getElementById("output").innerHTML = html;
-
-      } catch (err) {
-        document.getElementById("output").innerHTML = "⚠ Erro na análise: " + err;
+function extractTokensFromHtml(html, selector){
+  // try selector
+  try{
+    if(selector){
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const nodes = doc.querySelectorAll(selector);
+      if(nodes && nodes.length){
+        let s=''; nodes.forEach(n=> s += ' ' + (n.textContent||''));
+        const parsed = parseSeq(s);
+        if(parsed.length) return {tokens: parsed, method: 'selector', sample: s.slice(0,300)};
       }
     }
-
-    function start() {
-      const link = document.getElementById("link").value;
-      if (!link) {
-        alert("Cole um link válido!");
-        return;
+  }catch(e){}
+  // find sequences in HTML text by regex
+  const seqRegex = /(?:\b(?:P|B|T|Player|Banker|Tie|Jogador|Banqueiro|Empate)\b[\s,.;:\-]*){3,}/gi;
+  const m = html.match(seqRegex);
+  if(m && m.length){
+    // pick longest
+    m.sort((a,b)=>b.length-a.length);
+    const parsed = parseSeq(m[0]);
+    if(parsed.length) return {tokens: parsed, method:'regex', sample: m[0].slice(0,300)};
+  }
+  // try JSON arrays inside
+  const arrRegex = /\[[^\]]{6,}\]/g;
+  const arrs = html.match(arrRegex) || [];
+  for(const a of arrs){
+    try{
+      const parsedJson = JSON.parse(a);
+      if(Array.isArray(parsedJson)){
+        const tokens = parsedJson.map(x=>normTok(String(x))).filter(Boolean);
+        if(tokens.length>=3) return {tokens, method:'json-array', sample: JSON.stringify(parsedJson).slice(0,200)};
       }
-      clearInterval(interval);
-      analisar(link); // primeira análise imediata
-      interval = setInterval(() => analisar(link), 15000); // repete a cada 15s
+    }catch(e){}
+  }
+  // fallback: collect letters P/B/T across page
+  const letters = html.replace(/[^PBTpbt]/g,'').split('').map(x=>x.toUpperCase());
+  if(letters.length>=3) return {tokens: letters, method:'letters', sample: letters.slice(0,80).join('')};
+  return {tokens: [], method:'none', sample: html.slice(0,200)};
+}
+
+function analyzeTokens(tokens){
+  if(!tokens || tokens.length===0) return {rec:'—', conf:0, pct:{P:0,B:0,T:0}};
+  // simple freq + recency weight
+  const counts = {P:0,B:0,T:0};
+  tokens.forEach((t,i)=>{ const w = 1 + (i/tokens.length)*0.6; counts[t] = (counts[t]||0) + w; });
+  const sum = counts.P + counts.B + counts.T || 1;
+  const pct = {P: Math.round(counts.P/sum*100), B: Math.round(counts.B/sum*100), T: Math.round(counts.T/sum*100)};
+  // top
+  let rec='P', top=pct.P;
+  if(pct.B>=top){ rec='B'; top=pct.B; } if(pct.T>top){ rec='T'; top=pct.T; }
+  const conf = Math.min(98, Math.max(15, Math.round(top*0.9)));
+  return {rec, conf, pct};
+}
+
+async function tick(){
+  const url = document.getElementById('link').value.trim();
+  if(!url){ document.getElementById('debug').textContent = 'Cole um link ou use análise manual'; return; }
+  const proxy = document.getElementById('proxy').value.trim();
+  const selector = document.getElementById('selector').value.trim();
+  try{
+    document.getElementById('debug').textContent = 'Tentando fetch...';
+    const res = await fetchThroughProxies(url, proxy || null);
+    document.getElementById('debug').textContent = 'Fetch OK via: ' + res.used;
+    const extr = extractTokensFromHtml(res.text, selector);
+    if(extr.tokens.length >= 3){
+      // merge tokens intelligently
+      let added = 0;
+      extr.tokens.forEach(t=>{ if(series.length===0 || series[series.length-1] !== t){ series.push(t); added++; } });
+      if(series.length>1200) series = series.slice(-1200);
+      const out = analyzeTokens(series);
+      document.getElementById('rec').textContent = out.rec === 'P' ? 'JOGADOR' : out.rec === 'B' ? 'BANQUEIRO' : 'EMPATE';
+      document.getElementById('rec').className = 'rec ' + (out.rec === 'P' ? 'player' : out.rec === 'B' ? 'banker' : 'tie');
+      document.getElementById('conf').textContent = 'Confiança: ' + out.conf + '%';
+      document.getElementById('debug').textContent = 'Método: ' + extr.method + '\\nSample: ' + extr.sample + '\\nSeries tail: ' + series.slice(-40).join(',');
+    } else {
+      document.getElementById('debug').textContent = 'Nenhum token detectado. Método: ' + extr.method + '\\nSample: ' + extr.sample;
     }
-  </script>
+  }catch(e){
+    document.getElementById('debug').textContent = 'Erro: ' + (e.message || e);
+  }
+}
+
+document.getElementById('start').addEventListener('click', ()=>{
+  if(monitor) return;
+  const iv = Math.max(500, Number(document.getElementById('interval').value || 2000));
+  tick(); monitor = setInterval(tick, iv);
+  document.getElementById('start').disabled = true; document.getElementById('stop').disabled = false;
+});
+document.getElementById('stop').addEventListener('click', ()=>{ if(monitor) clearInterval(monitor); monitor=null; document.getElementById('start').disabled=false; document.getElementById('stop').disabled=true; });
+document.getElementById('analyzeManual').addEventListener('click', ()=>{ const txt = document.getElementById('manual').value || ''; const parsed = parseSeq(txt); if(!parsed.length){ alert('Sequência manual inválida'); return; } series = parsed.slice(-1200); const out = analyzeTokens(series); document.getElementById('rec').textContent = out.rec==='P'?'JOGADOR':out.rec==='B'?'BANQUEIRO':'EMPATE'; document.getElementById('conf').textContent = 'Confiança: '+out.conf+'%'; document.getElementById('debug').textContent = 'Análise manual — series: '+series.join(','); });
+</script>
 </body>
 </html>
