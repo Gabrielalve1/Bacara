@@ -2,36 +2,64 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Baccarat AI Desafio</title>
+  <title>Baccarat & Roleta Analisador</title>
   <style>
     body { background:#111; color:#fff; font-family:Arial; text-align:center; }
     h1 { color:#00ffcc; }
-    iframe { width:100%; height:300px; border:1px solid #333; margin-top:15px; }
-    #output { margin-top:20px; font-size:22px; font-weight:bold; }
+    input, button { padding:10px; font-size:16px; margin:5px; }
+    #output { margin-top:20px; font-size:18px; text-align:left; background:#222; padding:15px; border-radius:8px; }
     .player { color:#00ffcc; }
     .banker { color:#ff0066; }
     .tie { color:#ffff00; }
+    .number { color:#1e90ff; font-weight:bold; }
   </style>
 </head>
 <body>
-  <h1>Baccarat Master — Desafio Hipotético</h1>
-  <p>Cole o link do gráfico/jogo:</p>
-  <input type="text" id="link" placeholder="Cole aqui o link">
+  <h1>🔮 Analisador Automático</h1>
+  <p>Cole o link do jogo/roleta:</p>
+  <input type="text" id="link" placeholder="Cole o link aqui" size="50">
   <button onclick="start()">▶ Iniciar</button>
 
   <div id="output">Aguardando início...</div>
-  <iframe id="frame" src=""></iframe>
 
   <script>
     let interval;
 
-    function recomendar() {
-      const r = Math.random();
-      let resultado = "";
-      if (r < 0.45) resultado = "<span class='player'>Recomendação: JOGADOR</span>";
-      else if (r < 0.9) resultado = "<span class='banker'>Recomendação: BANQUEIRO</span>";
-      else resultado = "<span class='tie'>⚠ Saiu EMPATE!</span>";
-      document.getElementById("output").innerHTML = resultado;
+    async function analisar(url) {
+      try {
+        // TROQUE AQUI PELA SUA API DO VERCEL:
+        const api = "https://seu-projeto.vercel.app/api/scrape?url=" + encodeURIComponent(url);
+        const res = await fetch(api);
+        const data = await res.json();
+
+        if (!data.ok) {
+          document.getElementById("output").innerHTML = "❌ Erro: " + (data.error || "falha na análise");
+          return;
+        }
+
+        let html = "<h3>📊 Resultado da análise</h3>";
+        if (data.tokensDetected && data.tokensDetected.length > 0) {
+          html += "<p>🃏 Baccarat detectado:<br>";
+          html += data.tokensDetected.map(t => {
+            if (/player/i.test(t)) return `<span class='player'>${t}</span>`;
+            if (/banker/i.test(t)) return `<span class='banker'>${t}</span>`;
+            if (/tie|empate/i.test(t)) return `<span class='tie'>${t}</span>`;
+            return t;
+          }).join(" ");
+          html += "</p>";
+        }
+
+        if (data.numbersDetected && data.numbersDetected.length > 0) {
+          html += "<p>🎲 Roleta detectada:<br>";
+          html += data.numbersDetected.map(n => `<span class='number'>${n}</span>`).join(" ");
+          html += "</p>";
+        }
+
+        document.getElementById("output").innerHTML = html;
+
+      } catch (err) {
+        document.getElementById("output").innerHTML = "⚠ Erro na análise: " + err;
+      }
     }
 
     function start() {
@@ -40,10 +68,9 @@
         alert("Cole um link válido!");
         return;
       }
-      document.getElementById("frame").src = link;
       clearInterval(interval);
-      recomendar(); // primeira vez
-      interval = setInterval(recomendar, 8000); // a cada 8 segundos
+      analisar(link); // primeira análise imediata
+      interval = setInterval(() => analisar(link), 15000); // repete a cada 15s
     }
   </script>
 </body>
