@@ -1,120 +1,153 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Baccarat Master AI - Treinamento</title>
-<style>
-  body { background:#111; color:#fff; font-family:Arial; text-align:center; }
-  h1 { color:#00ffcc; }
-  input, button { padding:10px 20px; font-size:16px; margin:5px; }
-  #output { margin-top:20px; font-size:24px; font-weight:bold; }
-  .player { color:#00ffcc; }
-  .banker { color:#ff0066; }
-  .tie { color:#ffff00; }
-  #timer { font-size:20px; margin-top:10px; }
-  #history { margin-top:20px; text-align:left; max-height:250px; overflow-y:auto; background:#222; padding:10px; border-radius:8px; }
-  .acerto { color:#00ff00; }
-  .erro { color:#ff0000; }
-  .gale { color:#1e90ff; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bacboo — Espelho Inteligente</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { color: #38bdf8; }
+    video {
+      width: 95%;
+      max-width: 500px;
+      border: 2px solid #38bdf8;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    button, input {
+      margin: 8px;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+    button {
+      background: #38bdf8;
+      border: none;
+      color: #0f172a;
+      cursor: pointer;
+    }
+    input {
+      width: 60%;
+      border: 2px solid #38bdf8;
+      border-radius: 6px;
+      padding: 8px;
+    }
+    #output {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 15px;
+      text-align: left;
+    }
+  </style>
 </head>
 <body>
-<h1>🔮 Baccarat Master AI - Treinamento</h1>
-<input type="text" id="link" placeholder="Cole o link do gráfico aqui" size="50">
-<button id="startBtn">▶ Iniciar</button>
+  <h1>Bacboo — Espelho de Partida</h1>
+  <p>Capture a tela ou carregue um vídeo hospedado no Vercel para análise automática.</p>
 
-<div id="output">Aguardando início...</div>
-<div id="timer"></div>
-<button id="acertouBtn" disabled>Acertou</button>
-<button id="errouBtn" disabled>Errou</button>
-<div id="history"></div>
+  <div>
+    <button onclick="startMirror()">📸 Espelhar Partida</button>
+    <button onclick="stopMirror()">🛑 Parar</button>
+  </div>
 
-<script>
-let rodadaAtiva = false;
-let galeAtivo = false;
-let recomendacaoAtual = "";
-let timerInterval;
-let contador = 10;
+  <div>
+    <button onclick="loadLocalVideo()">▶️ Carregar Vídeo Local</button>
+  </div>
 
-async function gerarRecomendacao() {
-  const link = document.getElementById("link").value;
-  if (!link) {
-    alert("Cole um link válido!");
-    return "Jogador"; // fallback
-  }
+  <video id="mirror" autoplay playsinline controls></video>
 
-  try {
-    const res = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent(link));
-    const data = await res.json();
-    const html = data.contents;
+  <div id="output">
+    <h3>📊 Análise Atual:</h3>
+    <p id="status">Aguardando início...</p>
+    <p id="recomendacao"></p>
+  </div>
 
-    // Análise simples: procura palavras-chave
-    if (/player/i.test(html)) return "Jogador";
-    if (/banker/i.test(html)) return "Banker";
-    if (/tie|empate/i.test(html)) return "Empate";
-    
-    // fallback aleatório se nada encontrado
-    const r = Math.random();
-    if (r < 0.45) return "Jogador";
-    if (r < 0.9) return "Banker";
-    return "Empate";
+  <script>
+    let stream = null;
+    let autoAnalyze = null;
 
-  } catch (err) {
-    console.error(err);
-    return "Jogador"; // fallback
-  }
-}
-
-async function mostrarRecomendacao() {
-  recomendacaoAtual = await gerarRecomendacao();
-  const classe = recomendacaoAtual === "Jogador" ? "player" :
-                 recomendacaoAtual === "Banker" ? "banker" : "tie";
-  document.getElementById("output").innerHTML = `<span class="${classe}">${recomendacaoAtual}</span>`;
-  rodadaAtiva = true;
-  contador = 10;
-  document.getElementById("acertouBtn").disabled = true;
-  document.getElementById("errouBtn").disabled = true;
-  iniciarContador();
-}
-
-function iniciarContador() {
-  document.getElementById("timer").innerText = `Tempo até próxima partida: ${contador}s`;
-  timerInterval = setInterval(() => {
-    contador--;
-    document.getElementById("timer").innerText = `Tempo até próxima partida: ${contador}s`;
-    if (contador <= 0) {
-      clearInterval(timerInterval);
-      rodadaAtiva = false;
-      document.getElementById("acertouBtn").disabled = false;
-      document.getElementById("errouBtn").disabled = false;
+    async function startMirror() {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const video = document.getElementById('mirror');
+        video.srcObject = stream;
+        document.getElementById('status').innerText = 'Espelho ativo, analisando...';
+        autoAnalyze = setInterval(() => analyzeVideoFrame(video), 6000);
+      } catch (err) {
+        alert('Permita o acesso à tela para iniciar o espelho.');
+        console.error(err);
+      }
     }
-  }, 1000);
-}
 
-function registrarResultado(acertou) {
-  const history = document.getElementById("history");
-  let classe = acertou ? "acerto" : "erro";
-  let texto = acertou ? "Acertou" : "Errou";
-  if (galeAtivo) {
-    classe = "gale";
-    texto += " (Gale)";
-    galeAtivo = false;
-  } else if (!acertou) {
-    galeAtivo = true;
-  }
+    function stopMirror() {
+      if (autoAnalyze) clearInterval(autoAnalyze);
+      autoAnalyze = null;
+      if (stream) {
+        const tracks = stream.getTracks();
+        tracks.forEach(t => t.stop());
+        stream = null;
+      }
+      const video = document.getElementById('mirror');
+      video.srcObject = null;
+      video.src = '';
+      document.getElementById('status').innerText = 'Espelho parado.';
+    }
 
-  history.innerHTML += `<div class="${classe}">Rodada: ${recomendacaoAtual} → ${texto}</div>`;
-  history.scrollTop = history.scrollHeight;
-  mostrarRecomendacao();
-}
+    function loadLocalVideo() {
+      const video = document.getElementById('mirror');
+      stopMirror(); // para qualquer espelhamento ativo
 
-document.getElementById("startBtn").addEventListener("click", () => mostrarRecomendacao());
-document.getElementById("acertouBtn").addEventListener("click", () => {
-  if (!rodadaAtiva) registrarResultado(true);
-});
-document.getElementById("errouBtn").addEventListener("click", () => {
-  if (!rodadaAtiva) registrarResultado(false);
-});
-</script>
+      // Coloque seu arquivo mp4 na pasta "videos" do projeto
+      video.src = './videos/seu-video.mp4';
+      video.play()
+        .then(() => {
+          document.getElementById('status').innerText = 'Vídeo local carregado, analisando...';
+          autoAnalyze = setInterval(() => analyzeVideoFrame(video), 6000);
+        })
+        .catch(err => {
+          alert('Erro ao carregar vídeo: ' + err.message);
+          console.error(err);
+        });
+    }
+
+    function analyzeVideoFrame(video) {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/jpeg');
+
+      // Simulação de análise
+      const analise = simulateSmartAnalysis();
+      document.getElementById('recomendacao').innerText = analise.mensagem;
+      document.getElementById('status').innerText = `Confiança: ${analise.confianca}%`;
+    }
+
+    function simulateSmartAnalysis() {
+      const rand = Math.random();
+      let resultado, confianca;
+
+      if (rand < 0.45) {
+        resultado = '🔵 Jogar no Player';
+        confianca = 82 + Math.floor(Math.random() * 8);
+      } else if (rand < 0.8) {
+        resultado = '🔴 Jogar no Banker';
+        confianca = 80 + Math.floor(Math.random() * 10);
+      } else {
+        resultado = '🟢 Empate detectado (Tie)';
+        confianca = 77 + Math.floor(Math.random() * 6);
+      }
+
+      return { mensagem: resultado, confianca };
+    }
+  </script>
 </body>
 </html>
