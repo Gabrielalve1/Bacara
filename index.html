@@ -1,154 +1,114 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bacboo — Espelho Inteligente</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 { color: #38bdf8; }
-    video {
-      width: 95%;
-      max-width: 500px;
-      border: 2px solid #38bdf8;
-      border-radius: 10px;
-      margin-top: 10px;
-    }
-    button, input {
-      margin: 8px;
-      padding: 10px;
-      border-radius: 6px;
-      font-weight: bold;
-    }
-    button {
-      background: #38bdf8;
-      border: none;
-      color: #0f172a;
-      cursor: pointer;
-    }
-    input {
-      width: 60%;
-      border: 2px solid #38bdf8;
-      border-radius: 6px;
-      padding: 8px;
-    }
-    #output {
-      background: #1e293b;
-      border-radius: 10px;
-      padding: 15px;
-      margin-top: 15px;
-      text-align: left;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bacboo — Espelho Inteligente</title>
+<style>
+body { font-family: Arial, sans-serif; background:#0f172a; color:#f8fafc; text-align:center; margin:0; padding:20px;}
+h1 { color:#38bdf8; }
+video { width:95%; max-width:500px; border:2px solid #38bdf8; border-radius:10px; margin-top:10px; }
+button,input { margin:8px; padding:10px; border-radius:6px; font-weight:bold; }
+button { background:#38bdf8; border:none; color:#0f172a; cursor:pointer; }
+input { width:60%; border:2px solid #38bdf8; border-radius:6px; padding:8px; }
+#output { background:#1e293b; border-radius:10px; padding:15px; margin-top:15px; text-align:left; }
+</style>
 </head>
 <body>
-  <h1>Bacboo — Espelho de Partida</h1>
-  <p>Capture a tela ou carregue um vídeo via URL pública para análise automática.</p>
 
-  <div>
-    <button onclick="startMirror()">📸 Espelhar Partida</button>
-    <button onclick="stopMirror()">🛑 Parar</button>
-  </div>
+<h1>Bacboo — Espelho Inteligente</h1>
+<p>Espelhe sua tela ou teste vídeo interno para análise automática.</p>
 
-  <div>
-    <input type="text" id="videoUrl" placeholder="Cole a URL do vídeo (mp4 público)">
-    <button onclick="loadRemoteVideo()">▶️ Carregar Vídeo</button>
-  </div>
+<div>
+<button onclick="startMirror()">📸 Espelhar Partida</button>
+<button onclick="stopMirror()">🛑 Parar</button>
+</div>
 
-  <video id="mirror" autoplay playsinline controls></video>
+<div>
+<button onclick="loadInternalVideo()">▶️ Teste Vídeo Interno</button>
+</div>
 
-  <div id="output">
-    <h3>📊 Análise Atual:</h3>
-    <p id="status">Aguardando início...</p>
-    <p id="recomendacao"></p>
-  </div>
+<video id="mirror" autoplay playsinline controls></video>
 
-  <script>
-    let stream = null;
-    let autoAnalyze = null;
+<div id="output">
+<h3>📊 Análise Atual:</h3>
+<p id="status">Aguardando início...</p>
+<p id="recomendacao"></p>
+</div>
 
-    async function startMirror() {
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        const video = document.getElementById('mirror');
-        video.srcObject = stream;
-        document.getElementById('status').innerText = 'Espelho ativo, analisando...';
-        autoAnalyze = setInterval(() => analyzeVideoFrame(video), 6000);
-      } catch (err) {
-        alert('Permita o acesso à tela para iniciar o espelho.');
-        console.error(err);
-      }
-    }
+<script>
+let stream=null;
+let autoAnalyze=null;
 
-    function stopMirror() {
-      if (autoAnalyze) clearInterval(autoAnalyze);
-      autoAnalyze = null;
-      if (stream) {
-        const tracks = stream.getTracks();
-        tracks.forEach(t => t.stop());
-        stream = null;
-      }
-      const video = document.getElementById('mirror');
-      video.srcObject = null;
-      video.src = '';
-      document.getElementById('status').innerText = 'Espelho parado.';
-    }
+async function startMirror() {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({video:true});
+    const video=document.getElementById('mirror');
+    video.srcObject=stream;
+    document.getElementById('status').innerText='Espelho ativo, analisando...';
+    autoAnalyze=setInterval(()=>analyzeVideoFrame(video),6000);
+  } catch(err){
+    alert('Permita o acesso à tela para iniciar o espelho.');
+    console.error(err);
+  }
+}
 
-    function loadRemoteVideo() {
-      const url = document.getElementById('videoUrl').value;
-      const video = document.getElementById('mirror');
-      if (!url) {
-        alert('Insira uma URL pública de vídeo (.mp4).');
-        return;
-      }
+function stopMirror(){
+  if(autoAnalyze) clearInterval(autoAnalyze);
+  autoAnalyze=null;
+  if(stream){
+    const tracks=stream.getTracks();
+    tracks.forEach(t=>t.stop());
+    stream=null;
+  }
+  const video=document.getElementById('mirror');
+  video.srcObject=null;
+  video.src='';
+  document.getElementById('status').innerText='Espelho parado.';
+}
 
-      stopMirror(); // para qualquer espelhamento ativo
-      video.src = url;
-      video.play()
-        .then(() => {
-          document.getElementById('status').innerText = 'Vídeo remoto carregado, analisando...';
-          autoAnalyze = setInterval(() => analyzeVideoFrame(video), 6000);
-        })
-        .catch(err => {
-          alert('Erro ao carregar vídeo: ' + err.message);
-          console.error(err);
-        });
-    }
+function loadInternalVideo(){
+  stopMirror();
+  const video=document.getElementById('mirror');
+  // Coloque aqui seu vídeo de teste pequeno dentro da pasta do projeto
+  video.src='./video-teste.mp4';
+  video.play().then(()=>{
+    document.getElementById('status').innerText='Vídeo interno carregado, analisando...';
+    autoAnalyze=setInterval(()=>analyzeVideoFrame(video),6000);
+  }).catch(err=>{
+    alert('Erro ao carregar vídeo: '+err.message);
+    console.error(err);
+  });
+}
 
-    function analyzeVideoFrame(video) {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+function analyzeVideoFrame(video){
+  const canvas=document.createElement('canvas');
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
 
-      const analise = simulateSmartAnalysis();
-      document.getElementById('recomendacao').innerText = analise.mensagem;
-      document.getElementById('status').innerText = `Confiança: ${analise.confianca}%`;
-    }
+  const analise=simulateSmartAnalysis();
+  document.getElementById('recomendacao').innerText=analise.mensagem;
+  document.getElementById('status').innerText=`Confiança: ${analise.confianca}%`;
+}
 
-    function simulateSmartAnalysis() {
-      const rand = Math.random();
-      let resultado, confianca;
-      if (rand < 0.45) {
-        resultado = '🔵 Jogar no Player';
-        confianca = 82 + Math.floor(Math.random() * 8);
-      } else if (rand < 0.8) {
-        resultado = '🔴 Jogar no Banker';
-        confianca = 80 + Math.floor(Math.random() * 10);
-      } else {
-        resultado = '🟢 Empate detectado (Tie)';
-        confianca = 77 + Math.floor(Math.random() * 6);
-      }
-      return { mensagem: resultado, confianca };
-    }
-  </script>
+function simulateSmartAnalysis(){
+  const rand=Math.random();
+  let resultado,confianca;
+  if(rand<0.45){
+    resultado='🔵 Jogar no Player';
+    confianca=82+Math.floor(Math.random()*8);
+  } else if(rand<0.8){
+    resultado='🔴 Jogar no Banker';
+    confianca=80+Math.floor(Math.random()*10);
+  } else{
+    resultado='🟢 Empate detectado (Tie)';
+    confianca=77+Math.floor(Math.random()*6);
+  }
+  return {mensagem:resultado,confianca};
+}
+</script>
+
 </body>
 </html>
