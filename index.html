@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Bacboo — Espelho de Partida</h1>
-  <p>Capture a tela ou carregue um vídeo hospedado no Vercel para análise automática.</p>
+  <p>Capture a tela ou carregue um vídeo via URL pública para análise automática.</p>
 
   <div>
     <button onclick="startMirror()">📸 Espelhar Partida</button>
@@ -58,7 +58,8 @@
   </div>
 
   <div>
-    <button onclick="loadLocalVideo()">▶️ Carregar Vídeo Local</button>
+    <input type="text" id="videoUrl" placeholder="Cole a URL do vídeo (mp4 público)">
+    <button onclick="loadRemoteVideo()">▶️ Carregar Vídeo</button>
   </div>
 
   <video id="mirror" autoplay playsinline controls></video>
@@ -100,15 +101,19 @@
       document.getElementById('status').innerText = 'Espelho parado.';
     }
 
-    function loadLocalVideo() {
+    function loadRemoteVideo() {
+      const url = document.getElementById('videoUrl').value;
       const video = document.getElementById('mirror');
-      stopMirror(); // para qualquer espelhamento ativo
+      if (!url) {
+        alert('Insira uma URL pública de vídeo (.mp4).');
+        return;
+      }
 
-      // Coloque seu arquivo mp4 na pasta "videos" do projeto
-      video.src = './videos/seu-video.mp4';
+      stopMirror(); // para qualquer espelhamento ativo
+      video.src = url;
       video.play()
         .then(() => {
-          document.getElementById('status').innerText = 'Vídeo local carregado, analisando...';
+          document.getElementById('status').innerText = 'Vídeo remoto carregado, analisando...';
           autoAnalyze = setInterval(() => analyzeVideoFrame(video), 6000);
         })
         .catch(err => {
@@ -123,9 +128,7 @@
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg');
 
-      // Simulação de análise
       const analise = simulateSmartAnalysis();
       document.getElementById('recomendacao').innerText = analise.mensagem;
       document.getElementById('status').innerText = `Confiança: ${analise.confianca}%`;
@@ -134,7 +137,6 @@
     function simulateSmartAnalysis() {
       const rand = Math.random();
       let resultado, confianca;
-
       if (rand < 0.45) {
         resultado = '🔵 Jogar no Player';
         confianca = 82 + Math.floor(Math.random() * 8);
@@ -145,7 +147,6 @@
         resultado = '🟢 Empate detectado (Tie)';
         confianca = 77 + Math.floor(Math.random() * 6);
       }
-
       return { mensagem: resultado, confianca };
     }
   </script>
