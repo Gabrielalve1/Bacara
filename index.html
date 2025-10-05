@@ -17,7 +17,7 @@ input { width:60%; border:2px solid #38bdf8; border-radius:6px; padding:8px; }
 <body>
 
 <h1>Bacboo — Espelho Inteligente</h1>
-<p>Espelhe sua tela ou teste vídeo interno para análise automática.</p>
+<p>Espelhe sua tela ou carregue um vídeo via URL pública (.mp4) para análise automática.</p>
 
 <div>
 <button onclick="startMirror()">📸 Espelhar Partida</button>
@@ -25,7 +25,8 @@ input { width:60%; border:2px solid #38bdf8; border-radius:6px; padding:8px; }
 </div>
 
 <div>
-<button onclick="loadInternalVideo()">▶️ Teste Vídeo Interno</button>
+<input type="text" id="videoUrl" placeholder="Cole a URL do vídeo (mp4 público)">
+<button onclick="loadRemoteVideo()">▶️ Carregar Vídeo</button>
 </div>
 
 <video id="mirror" autoplay playsinline controls></video>
@@ -40,14 +41,14 @@ input { width:60%; border:2px solid #38bdf8; border-radius:6px; padding:8px; }
 let stream=null;
 let autoAnalyze=null;
 
-async function startMirror() {
-  try {
+async function startMirror(){
+  try{
     stream = await navigator.mediaDevices.getDisplayMedia({video:true});
-    const video=document.getElementById('mirror');
-    video.srcObject=stream;
+    const video = document.getElementById('mirror');
+    video.srcObject = stream;
     document.getElementById('status').innerText='Espelho ativo, analisando...';
-    autoAnalyze=setInterval(()=>analyzeVideoFrame(video),6000);
-  } catch(err){
+    autoAnalyze = setInterval(()=>analyzeVideoFrame(video),6000);
+  }catch(err){
     alert('Permita o acesso à tela para iniciar o espelho.');
     console.error(err);
   }
@@ -61,20 +62,24 @@ function stopMirror(){
     tracks.forEach(t=>t.stop());
     stream=null;
   }
-  const video=document.getElementById('mirror');
+  const video = document.getElementById('mirror');
   video.srcObject=null;
   video.src='';
   document.getElementById('status').innerText='Espelho parado.';
 }
 
-function loadInternalVideo(){
+function loadRemoteVideo(){
+  const url = document.getElementById('videoUrl').value;
+  const video = document.getElementById('mirror');
+  if(!url){
+    alert('Insira uma URL pública de vídeo (.mp4).');
+    return;
+  }
   stopMirror();
-  const video=document.getElementById('mirror');
-  // Coloque aqui seu vídeo de teste pequeno dentro da pasta do projeto
-  video.src='./video-teste.mp4';
+  video.src=url;
   video.play().then(()=>{
-    document.getElementById('status').innerText='Vídeo interno carregado, analisando...';
-    autoAnalyze=setInterval(()=>analyzeVideoFrame(video),6000);
+    document.getElementById('status').innerText='Vídeo remoto carregado, analisando...';
+    autoAnalyze = setInterval(()=>analyzeVideoFrame(video),6000);
   }).catch(err=>{
     alert('Erro ao carregar vídeo: '+err.message);
     console.error(err);
@@ -99,10 +104,10 @@ function simulateSmartAnalysis(){
   if(rand<0.45){
     resultado='🔵 Jogar no Player';
     confianca=82+Math.floor(Math.random()*8);
-  } else if(rand<0.8){
+  }else if(rand<0.8){
     resultado='🔴 Jogar no Banker';
     confianca=80+Math.floor(Math.random()*10);
-  } else{
+  }else{
     resultado='🟢 Empate detectado (Tie)';
     confianca=77+Math.floor(Math.random()*6);
   }
