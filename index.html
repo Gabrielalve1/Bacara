@@ -1,42 +1,41 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Baccarat AI Profissional</title>
-<style>
-body { background:#111; color:#fff; font-family:Arial; text-align:center; }
-h1 { color:#00ffc3; margin-top:20px; }
-input, button { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
-button { background:#00ffc3; color:#000; font-weight:bold; }
-#output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; }
-.player { color:#00ffc3; font-weight:bold; }
-.banker { color:#ff3366; font-weight:bold; }
-.tie { color:#ffff33; font-weight:bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>Baccarat AI Profissional Real</title>
+  <style>
+    body { background: #111; color: #fff; font-family: Arial; text-align: center; }
+    h1 { color: #00ffc3; margin-top: 20px; }
+    input, button { margin: 8px; padding: 10px 15px; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+    button { background: #00ffc3; color: #000; font-weight: bold; }
+    #output { background: #111; padding: 20px; border-radius: 10px; width: 90%; margin: 20px auto; text-align: left; font-size: 18px; }
+    .player { color: #00ffc3; font-weight: bold; }
+    .banker { color: #ff3366; font-weight: bold; }
+    .tie { color: #ffff33; font-weight: bold; }
+  </style>
 </head>
 <body>
 
-<h1>🔮 Baccarat AI Profissional</h1>
-<p>Cole o link do jogo:</p>
-<input type="text" id="link" placeholder="Link da mesa" size="50">
-<button onclick="start()">▶ Iniciar Análise</button>
+  <h1>🔮 Baccarat AI Profissional Real</h1>
+  <p>Cole o link da mesa:</p>
+  <input type="text" id="link" placeholder="Link da mesa" size="50">
+  <button onclick="start()">▶ Iniciar Monitoramento</button>
 
-<div id="output">Aguardando início...</div>
+  <div id="output">Aguardando início...</div>
+  <div id="feedback" style="display:none; margin-top:10px;">
+    <p>Como foi o resultado da rodada?</p>
+    <button onclick="registrar('acerto')">✅ Acertou</button>
+    <button onclick="registrar('erro')">❌ Errou</button>
+    <button onclick="registrar('empate')">⚖️ Empate</button>
+  </div>
 
-<div id="feedback" style="display:none; margin-top:10px;">
-<p>Como foi o resultado da rodada?</p>
-<button onclick="registrar('acerto')">✅ Acertou</button>
-<button onclick="registrar('erro')">❌ Errou</button>
-<button onclick="registrar('empate')">⚖️ Empate</button>
-</div>
+  <script>
+    let ultimaRecomendacao = "";
+    let linkGlobal = "";
 
-<script>
-let ultimaRecomendacao = "";
-let linkGlobal = "";
-
-async function analisar() {
-    try {
-        const api = `/api/feedback?link=${encodeURIComponent(linkGlobal)}`;
+    async function analisar() {
+      try {
+        const api = `/api/analyze?link=${encodeURIComponent(linkGlobal)}`;
         const res = await fetch(api);
         const data = await res.json();
         ultimaRecomendacao = data.recomendacao;
@@ -46,26 +45,26 @@ async function analisar() {
         document.getElementById("output").innerHTML = html;
         document.getElementById("feedback").style.display = "block";
 
-    } catch(e) {
+      } catch (e) {
         document.getElementById("output").innerHTML = "⚠ Erro ao analisar: " + e;
+      }
     }
-}
 
-function start() {
-    const link = document.getElementById("link").value;
-    if (!link) { alert("Coloque um link válido!"); return; }
-    linkGlobal = link;
-    analisar();
-}
+    function start() {
+      const link = document.getElementById("link").value;
+      if (!link) { alert("Coloque um link válido!"); return; }
+      linkGlobal = link;
+      analisar();
+    }
 
-async function registrar(resultado) {
-    document.getElementById("feedback").style.display = "none";
-    const api = `/api/feedback?link=${encodeURIComponent(linkGlobal)}&resultado=${resultado}&recomendacao=${encodeURIComponent(ultimaRecomendacao)}`;
-    await fetch(api);
-    document.getElementById("output").innerHTML += `<br>✅ Feedback registrado. Preparando próxima recomendação...`;
-    setTimeout(analisar, 1000);
-}
-</script>
+    async function registrar(resultado) {
+      document.getElementById("feedback").style.display = "none";
+      const api = `/api/analyze?link=${encodeURIComponent(linkGlobal)}&resultado=${resultado}&recomendacao=${encodeURIComponent(ultimaRecomendacao)}`;
+      await fetch(api);
+      document.getElementById("output").innerHTML += `<br>✅ Feedback registrado. Preparando próxima recomendação...`;
+      setTimeout(analisar, 1000);
+    }
+  </script>
 
 </body>
 </html>
