@@ -1,21 +1,19 @@
-import fetch from 'node-fetch';
+const historico = [];
 
-let historico = [];
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   const { link, resultado, recomendacao } = req.query;
 
-  // Registra feedback
+  // Salva feedback
   if (resultado && recomendacao) {
     historico.push({ link, recomendacao, resultado });
   }
 
-  // Aqui você adiciona lógica para capturar o gráfico real do site
-  // Por enquanto, simula captura e aplica estratégias:
-  let novaRecomendacao = "Player";
+  // Gera nova recomendação baseada no histórico
+  let novaRecomendacao = "Player"; // padrão
 
   if (historico.length > 0) {
-    let ultima = historico[historico.length - 1];
+    const ultima = historico[historico.length - 1];
+
     if (ultima.resultado === "erro") {
       novaRecomendacao = ultima.recomendacao === "Player" ? "Banker" : "Player";
     } else if (ultima.resultado === "empate") {
@@ -26,4 +24,4 @@ export default async function handler(req, res) {
   }
 
   res.status(200).json({ ok: true, recomendacao: novaRecomendacao });
-}
+};
