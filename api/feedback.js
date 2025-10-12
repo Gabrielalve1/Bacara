@@ -1,28 +1,29 @@
-let historico = []; // Armazena histórico real
+import fetch from 'node-fetch';
 
-export default function handler(req, res) {
-    const { link, resultado, recomendacao } = req.query;
+let historico = [];
 
-    // Registra feedback no histórico
-    if (resultado && recomendacao) {
-        historico.push({ link, recomendacao, resultado });
+export default async function handler(req, res) {
+  const { link, resultado, recomendacao } = req.query;
+
+  // Registra feedback
+  if (resultado && recomendacao) {
+    historico.push({ link, recomendacao, resultado });
+  }
+
+  // Aqui você adiciona lógica para capturar o gráfico real do site
+  // Por enquanto, simula captura e aplica estratégias:
+  let novaRecomendacao = "Player";
+
+  if (historico.length > 0) {
+    let ultima = historico[historico.length - 1];
+    if (ultima.resultado === "erro") {
+      novaRecomendacao = ultima.recomendacao === "Player" ? "Banker" : "Player";
+    } else if (ultima.resultado === "empate") {
+      novaRecomendacao = "Empate";
+    } else {
+      novaRecomendacao = ultima.recomendacao;
     }
+  }
 
-    // Estratégia adaptativa simples:
-    let ultimaRodada = historico[historico.length - 1];
-    let novaRecomendacao = "Player";
-
-    if (ultimaRodada) {
-        if (ultimaRodada.resultado === "erro") {
-            // Se errou, aplica Gale adaptativo
-            novaRecomendacao = ultimaRodada.recomendacao === "Player" ? "Banker" : "Player";
-        } else if (ultimaRodada.resultado === "empate") {
-            novaRecomendacao = "Empate";
-        } else {
-            // Mantém a tendência
-            novaRecomendacao = ultimaRodada.recomendacao;
-        }
-    }
-
-    res.status(200).json({ ok: true, recomendacao: novaRecomendacao });
+  res.status(200).json({ ok: true, recomendacao: novaRecomendacao });
 }
