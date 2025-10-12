@@ -2,11 +2,11 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Baccarat Master AI Vercel</title>
+<title>Baccarat AI Profissional</title>
 <style>
 body { background:#111; color:#fff; font-family:Arial; text-align:center; }
 h1 { color:#00ffc3; margin-top:20px; }
-button, input { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+input, button { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
 button { background:#00ffc3; color:#000; font-weight:bold; }
 #output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; }
 .player { color:#00ffc3; font-weight:bold; }
@@ -16,9 +16,9 @@ button { background:#00ffc3; color:#000; font-weight:bold; }
 </head>
 <body>
 
-<h1>🔮 Baccarat Master AI</h1>
+<h1>🔮 Baccarat AI Profissional</h1>
 <p>Cole o link do jogo:</p>
-<input type="text" id="link" placeholder="Link da mesa do BacBo" size="50">
+<input type="text" id="link" placeholder="Link da mesa" size="50">
 <button onclick="start()">▶ Iniciar Análise</button>
 
 <div id="output">Aguardando início...</div>
@@ -32,7 +32,6 @@ button { background:#00ffc3; color:#000; font-weight:bold; }
 
 <script>
 let ultimaRecomendacao = "";
-let intervalo;
 let linkGlobal = "";
 
 async function analisar() {
@@ -56,7 +55,6 @@ function start() {
     const link = document.getElementById("link").value;
     if (!link) { alert("Coloque um link válido!"); return; }
     linkGlobal = link;
-    clearInterval(intervalo);
     analisar();
 }
 
@@ -64,8 +62,8 @@ async function registrar(resultado) {
     document.getElementById("feedback").style.display = "none";
     const api = `/api/feedback?link=${encodeURIComponent(linkGlobal)}&resultado=${resultado}&recomendacao=${encodeURIComponent(ultimaRecomendacao)}`;
     await fetch(api);
-    document.getElementById("output").innerHTML += `<br>✅ Feedback registrado. Prepare-se para a próxima recomendação.`;
-    setTimeout(analisar, 1000); // próxima análise após 1s
+    document.getElementById("output").innerHTML += `<br>✅ Feedback registrado. Preparando próxima recomendação...`;
+    setTimeout(analisar, 1000);
 }
 </script>
 
