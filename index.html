@@ -1,87 +1,69 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Baccarat AI - Análise via Imagem</title>
-<style>
-  body { background:#111; color:#fff; font-family:Arial,sans-serif; text-align:center; }
-  h1 { color:#00ffc3; margin-top:20px; }
-  input, button { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; }
-  button { background:#00ffc3; color:#000; cursor:pointer; font-weight:bold; }
-  #output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; }
-  .player { color:#00ffc3; font-weight:bold; }
-  .banker { color:#ff3366; font-weight:bold; }
-  .tie { color:#ffff33; font-weight:bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>Baccarat Master AI Supreme</title>
+  <style>
+    body { background:#000; color:#fff; font-family:Arial,sans-serif; text-align:center; }
+    h1 { color:#00ffc3; margin-top:20px; }
+    button, input { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+    button { background:#00ffc3; color:#000; font-weight:bold; }
+    #output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; }
+  </style>
 </head>
 <body>
+  <h1>🔮 Baccarat Master AI Supreme</h1>
+  <p>Insira o link do gráfico do jogo:</p>
+  <input type="text" id="link" placeholder="Cole o link aqui" size="50">
+  <button onclick="iniciarAnalise()">▶ Analisar</button>
 
-<h1>🔮 Baccarat AI - Análise via Imagem</h1>
-<p>Envie a imagem do gráfico para análise:</p>
-<input type="file" id="fileInput" accept="image/*">
-<button onclick="analisar()">📸 Analisar Gráfico</button>
+  <div id="output">Aguardando link...</div>
 
-<div id="output">Aguardando imagem...</div>
+  <div id="feedback" style="display:none;">
+    <p>Resultado da última recomendação:</p>
+    <button onclick="registrar('acerto')">✅ Acertou</button>
+    <button onclick="registrar('erro')">❌ Errou</button>
+    <button onclick="registrar('empate')">⚖️ Empate</button>
+  </div>
 
-<div id="feedback" style="display:none;">
-  <p>Como foi o resultado anterior?</p>
-  <button onclick="registrar('acerto')">✅ Acertou</button>
-  <button onclick="registrar('erro')">❌ Errou</button>
-  <button onclick="registrar('empate')">⚖️ Empate</button>
-</div>
+  <script>
+    let historico = [];
+    let ultimaRecomendacao = "";
+    let linkAtual = "";
 
-<script>
-let historico = [];
-let ultimaRecomendacao = "";
-
-// Função que escolhe a recomendação baseada em padrões simulados
-function gerarRecomendacao(padroes) {
-    // Simulação simples adaptativa
-    if (historico.length > 0) {
-        let ultimo = historico[historico.length-1];
-        // Se errou, tenta mudar estratégia
-        if (ultimo.resultado === 'erro') {
-            return padroes[Math.floor(Math.random()*padroes.length)];
-        } else {
-            return ultimo.recomendacao; // repete padrão que acertou
-        }
-    } else {
-        return padroes[Math.floor(Math.random()*padroes.length)];
+    async function iniciarAnalise() {
+      linkAtual = document.getElementById("link").value;
+      if (!linkAtual) { alert("Insira um link válido!"); return; }
+      gerarRecomendacao(linkAtual);
     }
-}
 
-// Função que lê imagem (simulação)
-async function analisar() {
-    const file = document.getElementById("fileInput").files[0];
-    if (!file) { alert("Selecione uma imagem do gráfico!"); return; }
+    async function gerarRecomendacao(link) {
+      document.getElementById("output").innerHTML = "🧠 Analisando gráfico...";
+      // Chama backend para processar e gerar recomendação
+      try {
+        const res = await fetch(`/api/analisar?url=${encodeURIComponent(link)}`);
+        const data = await res.json();
 
-    document.getElementById("output").innerHTML = "🧠 Lendo e analisando o gráfico...";
-    await new Promise(r => setTimeout(r, 1500)); // simula análise
+        ultimaRecomendacao = data.recomendacao;
+        document.getElementById("output").innerHTML = `
+          💡 Recomendação: <b>${ultimaRecomendacao}</b><br>
+          🔍 Aguarde o resultado da rodada...
+        `;
+        document.getElementById("feedback").style.display = "block";
 
-    // Simulação de identificação de bolinhas na imagem
-    // Em uma versão real você usaria Canvas + JS para ler cores
-    const padroes = ["Player", "Banker", "Empate"];
-    ultimaRecomendacao = gerarRecomendacao(padroes);
+      } catch(e) {
+        document.getElementById("output").innerHTML = "❌ Erro ao analisar gráfico: " + e;
+      }
+    }
 
-    let recomendacaoHTML = "";
-    if (ultimaRecomendacao === "Player") recomendacaoHTML = "<span class='player'>Recomendação: Player</span>";
-    else if (ultimaRecomendacao === "Banker") recomendacaoHTML = "<span class='banker'>Recomendação: Banker</span>";
-    else recomendacaoHTML = "<span class='tie'>Recomendação: Empate</span>";
+    function registrar(resultado) {
+      historico.push({ recomendacao: ultimaRecomendacao, resultado });
+      document.getElementById("feedback").style.display = "none";
 
-    document.getElementById("output").innerHTML = `
-        💡 ${recomendacaoHTML}<br>
-        🔍 Aguardando feedback do resultado...
-    `;
-    document.getElementById("feedback").style.display = "block";
-}
-
-// Registrar feedback do usuário
-function registrar(resultado) {
-    historico.push({ recomendacao: ultimaRecomendacao, resultado });
-    document.getElementById("feedback").style.display = "none";
-    document.getElementById("output").innerHTML += `<br>🔁 Feedback registrado. Pronto para nova análise.`;
-}
-</script>
-
+      document.getElementById("output").innerHTML += `<br>✅ Feedback registrado: ${resultado}`;
+      // Gera nova recomendação após feedback
+      gerarRecomendacao(linkAtual);
+    }
+  </script>
 </body>
 </html>
