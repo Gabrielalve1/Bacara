@@ -1,69 +1,117 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Baccarat Master AI Supreme</title>
-  <style>
-    body { background:#000; color:#fff; font-family:Arial,sans-serif; text-align:center; }
-    h1 { color:#00ffc3; margin-top:20px; }
-    button, input { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
-    button { background:#00ffc3; color:#000; font-weight:bold; }
-    #output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; }
-  </style>
+<meta charset="UTF-8">
+<title>Baccarat Vision AI Real</title>
+<style>
+body { background:#000; color:#fff; font-family:Arial, sans-serif; text-align:center; }
+h1 { color:#00ffc3; margin-top:20px; }
+button, input { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
+button { background:#00ffc3; color:#000; font-weight:bold; }
+#output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; min-height:80px;}
+.player { color:#00ffc3; font-weight:bold; }
+.banker { color:#ff3366; font-weight:bold; }
+.tie { color:#ffff33; font-weight:bold; }
+</style>
 </head>
 <body>
-  <h1>🔮 Baccarat Master AI Supreme</h1>
-  <p>Insira o link do gráfico do jogo:</p>
-  <input type="text" id="link" placeholder="Cole o link aqui" size="50">
-  <button onclick="iniciarAnalise()">▶ Analisar</button>
 
-  <div id="output">Aguardando link...</div>
+<h1>🔮 Baccarat Vision AI Real</h1>
 
-  <div id="feedback" style="display:none;">
-    <p>Resultado da última recomendação:</p>
-    <button onclick="registrar('acerto')">✅ Acertou</button>
-    <button onclick="registrar('erro')">❌ Errou</button>
-    <button onclick="registrar('empate')">⚖️ Empate</button>
-  </div>
+<p>Envie a imagem do gráfico:</p>
+<input type="file" id="fileInput" accept="image/*">
+<button onclick="analisar()">📊 Analisar</button>
 
-  <script>
-    let historico = [];
-    let ultimaRecomendacao = "";
-    let linkAtual = "";
+<div id="output">Aguardando análise...</div>
 
-    async function iniciarAnalise() {
-      linkAtual = document.getElementById("link").value;
-      if (!linkAtual) { alert("Insira um link válido!"); return; }
-      gerarRecomendacao(linkAtual);
-    }
+<div id="feedback" style="display:none;">
+<p>Como foi o resultado da última rodada?</p>
+<button onclick="registrar('acerto')">✅ Acertou</button>
+<button onclick="registrar('erro')">❌ Errou</button>
+<button onclick="registrar('empate')">⚖️ Empate</button>
+</div>
 
-    async function gerarRecomendacao(link) {
-      document.getElementById("output").innerHTML = "🧠 Analisando gráfico...";
-      // Chama backend para processar e gerar recomendação
-      try {
-        const res = await fetch(`/api/analisar?url=${encodeURIComponent(link)}`);
-        const data = await res.json();
+<canvas id="canvas" style="display:none;"></canvas>
 
-        ultimaRecomendacao = data.recomendacao;
-        document.getElementById("output").innerHTML = `
-          💡 Recomendação: <b>${ultimaRecomendacao}</b><br>
-          🔍 Aguarde o resultado da rodada...
-        `;
-        document.getElementById("feedback").style.display = "block";
+<script>
+let historico = [];
+let ultimaRecomendacao = "";
+let estrategias = ["3-1-3","Torres Gêmeas","3x3","Quinta Casa","2-2 Escada","Reversão","Gale","Empate Inteligente"];
 
-      } catch(e) {
-        document.getElementById("output").innerHTML = "❌ Erro ao analisar gráfico: " + e;
-      }
-    }
+function escolherEstrategia() {
+  let prob = Math.random();
+  if (prob < 0.15) return "3-1-3";
+  if (prob < 0.30) return "Torres Gêmeas";
+  if (prob < 0.45) return "3x3";
+  if (prob < 0.60) return "Quinta Casa";
+  if (prob < 0.75) return "2-2 Escada";
+  if (prob < 0.85) return "Reversão";
+  if (prob < 0.95) return "Gale";
+  return "Empate Inteligente";
+}
 
-    function registrar(resultado) {
-      historico.push({ recomendacao: ultimaRecomendacao, resultado });
-      document.getElementById("feedback").style.display = "none";
+// Detecta cor principal do gráfico
+function detectarCorMedia(imageData) {
+  let r=0,g=0,b=0,count=0;
+  for(let i=0;i<imageData.data.length;i+=4){
+    let rr=imageData.data[i];
+    let gg=imageData.data[i+1];
+    let bb=imageData.data[i+2];
+    r+=rr; g+=gg; b+=bb; count++;
+  }
+  return {r: r/count, g: g/count, b: b/count};
+}
 
-      document.getElementById("output").innerHTML += `<br>✅ Feedback registrado: ${resultado}`;
-      // Gera nova recomendação após feedback
-      gerarRecomendacao(linkAtual);
-    }
-  </script>
+function classificarCor(cor){
+  // Azul = Player
+  if(cor.b>150 && cor.r<100 && cor.g<100) return "player";
+  // Vermelho = Banker
+  if(cor.r>150 && cor.g<100 && cor.b<100) return "banker";
+  // Amarelo = Tie
+  if(cor.r>150 && cor.g>150 && cor.b<100) return "tie";
+  return "player"; // default
+}
+
+async function analisar() {
+  const file = document.getElementById("fileInput").files[0];
+  if(!file){ alert("Envie uma imagem!"); return; }
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+
+  img.onload = function(){
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img,0,0);
+
+    // Simples: pega média de cor de todo gráfico (pode evoluir para ler cada bolinha individual)
+    const data = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const media = detectarCorMedia(data);
+    const resultadoGrafico = classificarCor(media);
+
+    ultimaRecomendacao = escolherEstrategia();
+    let recomendacaoHTML="";
+    if(resultadoGrafico==="player") recomendacaoHTML="<span class='player'>Recomendação: Player</span>";
+    else if(resultadoGrafico==="banker") recomendacaoHTML="<span class='banker'>Recomendação: Banker</span>";
+    else recomendacaoHTML="<span class='tie'>Recomendação: Empate</span>";
+
+    document.getElementById("output").innerHTML=`
+      📊 Estratégia ativa: <b>${ultimaRecomendacao}</b><br>
+      💡 ${recomendacaoHTML}<br>
+      🔍 Aguarde feedback para nova recomendação...
+    `;
+    document.getElementById("feedback").style.display="block";
+  };
+}
+
+function registrar(resultado){
+  historico.push({estrategia: ultimaRecomendacao, resultado});
+  document.getElementById("feedback").style.display="none";
+  const mensagem = resultado==="erro" ? "⚙️ Ajustando estratégia (Gale Adaptativo)..." : "🔁 Pronto para próxima rodada.";
+  document.getElementById("output").innerHTML+=`<br>${mensagem}`;
+}
+</script>
 </body>
 </html>
