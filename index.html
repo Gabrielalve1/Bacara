@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Baccarat Mobile Vision – Simulado</title>
+<title>Baccarat Mobile Vision – Traseira</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   body { background:#000; color:#fff; font-family:Arial,sans-serif; text-align:center; padding:10px; }
@@ -19,10 +19,10 @@
 </head>
 <body>
 
-<h1>🔮 Baccarat Mobile Vision</h1>
+<h1>🔮 Baccarat Mobile Vision – Traseira</h1>
 
 <div id="controls">
-  <button id="startCam">▶ Iniciar Câmera</button>
+  <button id="startCam">▶ Iniciar Câmera Traseira</button>
   <button id="stopCam">■ Parar</button>
 </div>
 
@@ -40,15 +40,10 @@ video.playsInline = true;
 
 let stream = null;
 let running = false;
-
-// Histórico e pesos adaptativos
 let historico = [];
 let pesos = {player:1, banker:1, tie:1};
-
-// Estratégias simples do ebook
 const estrategias = ["Gale","Reversão","Empate Inteligente","Torres Gêmeas","3-1-3","2-2 Escada","Quinta Casa"];
 
-// Utilitário para fala
 function speak(text){
   if(!('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text);
@@ -57,7 +52,6 @@ function speak(text){
   window.speechSynthesis.speak(u);
 }
 
-// Detecta cor da bolinha
 function colorToRole(r,g,b){
   if(r>150 && g<100 && b<100) return 'banker';
   if(r<100 && g<100 && b>150) return 'player';
@@ -65,7 +59,6 @@ function colorToRole(r,g,b){
   return null;
 }
 
-// Processa frame e retorna sequência
 function processFrame(){
   const w = videoCanvas.width;
   const h = videoCanvas.height;
@@ -84,7 +77,6 @@ function processFrame(){
   return seq;
 }
 
-// Escolhe estratégia baseada em última rodada
 function escolherEstrategia(atual){
   if(historico.length && historico[historico.length-1].resultado==='erro') return "Gale";
   if(atual==='tie') return "Empate Inteligente";
@@ -94,7 +86,6 @@ function escolherEstrategia(atual){
   return "Reversão";
 }
 
-// Loop de análise
 function loop(){
   if(!running) return;
   const seq = processFrame();
@@ -110,13 +101,12 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-// Start e Stop
 document.getElementById('startCam').onclick = async ()=>{
   if(stream) stopCam();
   try{
-    stream = await navigator.mediaDevices.getUserMedia({video:true});
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     video.srcObject = stream;
-    video.onloadedmetadata = ()=>{ 
+    video.onloadedmetadata = ()=>{
       video.play();
       videoCanvas.width = video.videoWidth;
       videoCanvas.height = video.videoHeight;
@@ -137,7 +127,6 @@ function stopCam(){
 }
 
 document.getElementById('stopCam').onclick = stopCam;
-
 </script>
 </body>
 </html>
