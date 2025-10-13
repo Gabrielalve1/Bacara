@@ -1,116 +1,289 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Baccarat Vision AI Real</title>
+<meta charset="utf-8" />
+<title>Baccarat Master Vision – Completo (Simulado)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-body { background:#000; color:#fff; font-family:Arial, sans-serif; text-align:center; }
-h1 { color:#00ffc3; margin-top:20px; }
-button, input { margin:8px; padding:10px 15px; border:none; border-radius:6px; font-size:16px; cursor:pointer; }
-button { background:#00ffc3; color:#000; font-weight:bold; }
-#output { background:#111; padding:20px; border-radius:10px; width:90%; margin:20px auto; text-align:left; font-size:18px; min-height:80px;}
-.player { color:#00ffc3; font-weight:bold; }
-.banker { color:#ff3366; font-weight:bold; }
-.tie { color:#ffff33; font-weight:bold; }
+:root{--bg:#0b0b0b;--panel:#0f1112;--accent:#00ffc3;--danger:#ff3366;}
+body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:#e6eef1;display:flex;flex-direction:column;align-items:center;padding:12px;}
+h1{color:var(--accent);margin:6px 0 12px;font-size:20px}
+#controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+button,input,select{background:var(--panel);color:#fff;border:1px solid #222;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14px}
+button.primary{background:var(--accent);color:#000;font-weight:700}
+#canvasWrap{position:relative;border:3px solid #111;border-radius:8px;overflow:hidden;max-width:100%;width:920px}
+canvas#videoCanvas{display:block;width:100%;height:auto;background:#000}
+#overlay{position:absolute;left:0;top:0;pointer-events:none}
+#rightPanel{width:920px;max-width:100%;margin-top:10px;background:#0d0f10;border-radius:8px;padding:12px;text-align:left}
+.label{color:#9fb3aa;font-size:13px}
+#status{margin-top:6px;color:#cfeee0}
+#seq{margin-top:8px;font-weight:700}
+.badge{display:inline-block;padding:6px 8px;border-radius:6px;margin-right:6px;font-weight:700}
+.player{background:#062a2d;color:var(--accent);border:1px solid rgba(0,255,195,0.12)}
+.banker{background:#2b0b0d;color:var(--danger);border:1px solid rgba(255,51,102,0.12)}
+.tie{background:#2b2a10;color:#fff9a6;border:1px solid rgba(255,255,0,0.12)}
+#feedback{margin-top:12px;display:flex;gap:8px}
+#history{max-height:160px;overflow:auto;margin-top:10px;background:#061018;padding:8px;border-radius:6px}
+.hist-item{padding:6px;border-bottom:1px dashed #0b1213;font-size:13px}
+.controls-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.small{font-size:13px;padding:6px 8px}
+#confidence{margin-top:8px;font-size:13px;color:#bfeee1}
+#patternBox{margin-top:8px;padding:8px;background:#071010;border-radius:8px}
+label.switch{display:inline-flex;align-items:center;gap:8px}
+input[type="range"]{width:160px}
 </style>
 </head>
 <body>
 
-<h1>🔮 Baccarat Vision AI Real</h1>
+<h1>🔮 Baccarat Master Vision – Completo (Simulado)</h1>
 
-<p>Envie a imagem do gráfico:</p>
-<input type="file" id="fileInput" accept="image/*">
-<button onclick="analisar()">📊 Analisar</button>
+<div id="controls" class="controls-row">
+  <button id="startScreen" class="small">▶ Capturar Tela</button>
+  <button id="startCam" class="small">▶ Usar Câmera</button>
+  <button id="stop" class="small">■ Parar</button>
+  <button id="snapshot" class="small">📸 Snapshot</button>
 
-<div id="output">Aguardando análise...</div>
-
-<div id="feedback" style="display:none;">
-<p>Como foi o resultado da última rodada?</p>
-<button onclick="registrar('acerto')">✅ Acertou</button>
-<button onclick="registrar('erro')">❌ Errou</button>
-<button onclick="registrar('empate')">⚖️ Empate</button>
+  <label class="switch small"><input id="speakToggle" type="checkbox" checked> 🔊 Falar padrão</label>
+  <label class="switch small"><input id="autoDetect" type="checkbox" checked> 🔁 Auto-detectar contínuo</label>
+  <label class="small">Vel (ms): <input id="frameInterval" type="range" min="250" max="2000" step="50" value="800"></label>
+  <span id="intervalVal" class="small">800</span>
 </div>
 
-<canvas id="canvas" style="display:none;"></canvas>
+<div id="canvasWrap">
+  <canvas id="videoCanvas"></canvas>
+  <canvas id="overlay"></canvas>
+</div>
+
+<div id="rightPanel">
+  <div class="label">Status:</div>
+  <div id="status">Parado</div>
+
+  <div id="patternBox">
+    <div><span class="label">Padrão detectado:</span> <span id="pattern" style="font-weight:800">—</span></div>
+    <div id="confidence">Confiança: <span id="confVal">0</span>%</div>
+    <div id="seq">Sequência: <span id="seqList">—</span></div>
+    <div style="margin-top:8px">
+      <span class="badge player">Player</span>
+      <span class="badge banker">Banker</span>
+      <span class="badge tie">Tie</span>
+    </div>
+  </div>
+
+  <div id="feedback">
+    <button id="btnAcerto" class="small">✅ Acertou</button>
+    <button id="btnErro" class="small">❌ Errou</button>
+    <button id="btnEmpate" class="small">⚖️ Empate</button>
+  </div>
+
+  <div id="history"><strong>Histórico (local):</strong><div id="histList"></div></div>
+</div>
 
 <script>
-let historico = [];
-let ultimaRecomendacao = "";
-let estrategias = ["3-1-3","Torres Gêmeas","3x3","Quinta Casa","2-2 Escada","Reversão","Gale","Empate Inteligente"];
+// ===== Config e estado =====
+const videoCanvas = document.getElementById('videoCanvas');
+const overlayCanvas = document.getElementById('overlay');
+const videoCtx = videoCanvas.getContext('2d');
+const overlayCtx = overlayCanvas.getContext('2d');
 
-function escolherEstrategia() {
-  let prob = Math.random();
-  if (prob < 0.15) return "3-1-3";
-  if (prob < 0.30) return "Torres Gêmeas";
-  if (prob < 0.45) return "3x3";
-  if (prob < 0.60) return "Quinta Casa";
-  if (prob < 0.75) return "2-2 Escada";
-  if (prob < 0.85) return "Reversão";
-  if (prob < 0.95) return "Gale";
-  return "Empate Inteligente";
+let stream = null;
+let captureVideo = document.createElement('video');
+captureVideo.autoplay = true;
+captureVideo.playsInline = true;
+
+let running = false;
+let lastDetectTime = 0;
+let frameInterval = parseInt(document.getElementById('frameInterval').value);
+let autoDetect = document.getElementById('autoDetect').checked;
+let speakToggle = document.getElementById('speakToggle').checked;
+
+let sequenceHistory = [];
+let detectionHistory = JSON.parse(localStorage.getItem('bmv_hist')) || [];
+let weights = {player:1, banker:1, tie:1};
+let estrategias = ["Gale","Reversão","Empate Inteligente","Torres Gêmeas","3-1-3","2-2 Escada","Quinta Casa"];
+
+// UI refs
+const statusEl = document.getElementById('status');
+const patternEl = document.getElementById('pattern');
+const confValEl = document.getElementById('confVal');
+const seqListEl = document.getElementById('seqList');
+const histListEl = document.getElementById('histList');
+const intervalValEl = document.getElementById('intervalVal');
+
+// ===== Utilidades =====
+function speak(text){
+  if(!speakToggle) return;
+  if(!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'pt-BR';
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
 }
 
-// Detecta cor principal do gráfico
-function detectarCorMedia(imageData) {
-  let r=0,g=0,b=0,count=0;
-  for(let i=0;i<imageData.data.length;i+=4){
-    let rr=imageData.data[i];
-    let gg=imageData.data[i+1];
-    let bb=imageData.data[i+2];
-    r+=rr; g+=gg; b+=bb; count++;
-  }
-  return {r: r/count, g: g/count, b: b/count};
+function saveHistory(){
+  localStorage.setItem('bmv_hist', JSON.stringify(detectionHistory));
+  renderHistory();
 }
 
-function classificarCor(cor){
-  // Azul = Player
-  if(cor.b>150 && cor.r<100 && cor.g<100) return "player";
-  // Vermelho = Banker
-  if(cor.r>150 && cor.g<100 && cor.b<100) return "banker";
-  // Amarelo = Tie
-  if(cor.r>150 && cor.g>150 && cor.b<100) return "tie";
-  return "player"; // default
+function renderHistory(){
+  histListEl.innerHTML = '';
+  detectionHistory.slice(-60).reverse().forEach(item=>{
+    const div = document.createElement('div');
+    div.className = 'hist-item';
+    div.innerHTML = `#${item.i} • Padrão: <b>${item.pattern}</b> • Seq: ${item.seq.join(', ')} • Res: ${item.result} • Estrat: ${item.estrategia}`;
+    histListEl.appendChild(div);
+  });
 }
 
-async function analisar() {
-  const file = document.getElementById("fileInput").files[0];
-  if(!file){ alert("Envie uma imagem!"); return; }
+// ===== Captura =====
+async function startScreenCapture(){
+  try{
+    if(stream) stopCapture();
+    stream = await navigator.mediaDevices.getDisplayMedia({video:true, audio:false});
+    beginStream(stream);
+  }catch(e){ alert('Erro ao capturar tela: '+e.message); }
+}
 
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
+async function startCamCapture(){
+  try{
+    if(stream) stopCapture();
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
+    beginStream(stream);
+  }catch(e){ alert('Erro ao acessar câmera: '+e.message); }
+}
 
-  img.onload = function(){
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img,0,0);
-
-    // Simples: pega média de cor de todo gráfico (pode evoluir para ler cada bolinha individual)
-    const data = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const media = detectarCorMedia(data);
-    const resultadoGrafico = classificarCor(media);
-
-    ultimaRecomendacao = escolherEstrategia();
-    let recomendacaoHTML="";
-    if(resultadoGrafico==="player") recomendacaoHTML="<span class='player'>Recomendação: Player</span>";
-    else if(resultadoGrafico==="banker") recomendacaoHTML="<span class='banker'>Recomendação: Banker</span>";
-    else recomendacaoHTML="<span class='tie'>Recomendação: Empate</span>";
-
-    document.getElementById("output").innerHTML=`
-      📊 Estratégia ativa: <b>${ultimaRecomendacao}</b><br>
-      💡 ${recomendacaoHTML}<br>
-      🔍 Aguarde feedback para nova recomendação...
-    `;
-    document.getElementById("feedback").style.display="block";
+function beginStream(s){
+  captureVideo.srcObject = s;
+  captureVideo.onloadedmetadata = ()=>{
+    captureVideo.play();
+    resizeCanvasToVideo();
+    running = true;
+    statusEl.innerText = 'Rodando — esperando frames...';
+    requestAnimationFrame(loop);
   };
 }
 
-function registrar(resultado){
-  historico.push({estrategia: ultimaRecomendacao, resultado});
-  document.getElementById("feedback").style.display="none";
-  const mensagem = resultado==="erro" ? "⚙️ Ajustando estratégia (Gale Adaptativo)..." : "🔁 Pronto para próxima rodada.";
-  document.getElementById("output").innerHTML+=`<br>${mensagem}`;
+function stopCapture(){
+  running = false;
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream=null;
+  statusEl.innerText='Parado';
+}
+
+function resizeCanvasToVideo(){
+  const vw=captureVideo.videoWidth, vh=captureVideo.videoHeight;
+  if(!vw||!vh) return;
+  const scale = Math.min(920/vw,1);
+  videoCanvas.width = vw*scale;
+  videoCanvas.height = vh*scale;
+  overlayCanvas.width = videoCanvas.width;
+  overlayCanvas.height = videoCanvas.height;
+}
+
+// ===== Detecção =====
+function colorToRole(r,g,b){
+  if(r>150&&g<100&&b<100) return 'banker';
+  if(r<100&&g<100&&b>150) return 'player';
+  if(r>180&&g>180&&b<120) return 'tie';
+  return null;
+}
+
+function detectBlobs(frameData, w, h){
+  const data = frameData;
+  const step = Math.max(4,Math.floor(w/200));
+  const points=[];
+  for(let y=0;y<h;y+=step){
+    for(let x=0;x<w;x+=step){
+      const idx = (y*w+x)*4;
+      const r=data[idx],g=data[idx+1],b=data[idx+2];
+      const c=colorToRole(r,g,b);
+      if(c) points.push({x,y,c});
+    }
+  }
+  const clusters=[];
+  const clusterDist = Math.max(12, step*1.8);
+  for(const p of points){
+    let found=false;
+    for(const cluster of clusters){
+      const dx=p.x-cluster.x, dy=p.y-cluster.y;
+      if(Math.sqrt(dx*dx+dy*dy)<clusterDist){
+        cluster.x=(cluster.x*cluster.count+p.x)/(cluster.count+1);
+        cluster.y=(cluster.y*cluster.count+p.y)/(cluster.count+1);
+        cluster.count++;
+        cluster.c=p.c;
+        found=true; break;
+      }
+    }
+    if(!found) clusters.push({x:p.x,y:p.y,c:p.c,count:1});
+  }
+  return clusters;
+}
+
+function chooseStrategy(last){
+  if(detectionHistory.length>0 && detectionHistory[detectionHistory.length-1].result==='erro') return 'Gale';
+  if(last==='tie') return 'Empate Inteligente';
+  let r=Math.random();
+  if(r<weights.player) return '3-1-3';
+  if(r<weights.player+weights.banker) return 'Torres Gêmeas';
+  return 'Reversão';
+}
+
+function loop(timestamp){
+  if(!running) return;
+  if(captureVideo.videoWidth===0) { requestAnimationFrame(loop); return; }
+  videoCtx.drawImage(captureVideo,0,0,videoCanvas.width,videoCanvas.height);
+  const frame = videoCtx.getImageData(0,0,videoCanvas.width,videoCanvas.height);
+
+  if(autoDetect && timestamp-lastDetectTime>frameInterval){
+    lastDetectTime=timestamp;
+    const blobs=detectBlobs(frame.data, videoCanvas.width, videoCanvas.height);
+    overlayCtx.clearRect(0,0,overlayCanvas.width,overlayCanvas.height);
+    blobs.forEach(b=>{
+      overlayCtx.fillStyle=b.c==='player'?'#00ffc3':b.c==='banker'?'#ff3366':'#ffff33';
+      overlayCtx.beginPath();
+      overlayCtx.arc(b.x,b.y,6,0,Math.PI*2); overlayCtx.fill();
+    });
+
+    sequenceHistory=blobs.map(b=>b.c);
+    seqListEl.innerText=sequenceHistory.join(', ');
+
+    const last = sequenceHistory[sequenceHistory.length-1];
+    const estrategia = chooseStrategy(last);
+    const pattern = last==='banker'?'Gale':last==='tie'?'Empate Inteligente':'Reversão';
+    patternEl.innerText = pattern;
+    confValEl.innerText = Math.round(Math.random()*30+70); // confiança simulada
+    speak(`Padrão detectado: ${pattern}`);
+
+    detectionHistory.push({i:detectionHistory.length+1, pattern, seq:sequenceHistory, result:'—', estrategia});
+    saveHistory();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ===== Eventos UI =====
+document.getElementById('startScreen').onclick=startScreenCapture;
+document.getElementById('startCam').onclick=startCamCapture;
+document.getElementById('stop').onclick=stopCapture;
+document.getElementById('snapshot').onclick=()=>{
+  const link=document.createElement('a');
+  link.href=videoCanvas.toDataURL();
+  link.download='snapshot.png';
+  link.click();
+};
+
+document.getElementById('frameInterval').oninput=e=>{
+  frameInterval=parseInt(e.target.value);
+  intervalValEl.innerText=frameInterval;
+};
+
+document.getElementById('btnAcerto').onclick=()=>updateLastResult('acerto');
+document.getElementById('btnErro').onclick=()=>updateLastResult('erro');
+document.getElementById('btnEmpate').onclick=()=>updateLastResult('empate');
+
+function updateLastResult(res){
+  if(detectionHistory.length===0) return;
+  detectionHistory[detectionHistory.length-1].result=res;
+  saveHistory();
 }
 </script>
 </body>
