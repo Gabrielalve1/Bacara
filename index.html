@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Baccarat Reader Pro+ Extreme CNN+LSTM</title>
+<title>Baccarat ProCode++ Omega</title>
 <style>
 body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
 #controls,#results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
@@ -16,10 +16,10 @@ button.alt{background:#1a2426;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 </head>
 <body>
-<h1>🔮 Baccarat Reader Pro+ Extreme CNN+LSTM</h1>
+<h1>🔮 Baccarat ProCode++ Omega</h1>
 
 <div id="controls">
-  <button id="startCam" class="alt">📷 Câmera Traseira</button>
+  <button id="startCam" class="alt">📷 Câmera</button>
   <button id="sendImg" class="alt">📸 Enviar Foto</button>
   <button id="stopBtn" class="alt">⛔ Parar</button>
 </div>
@@ -44,146 +44,138 @@ button.alt{background:#1a2426;color:#fff}
 </div>
 
 <script type="module">
+// Variáveis principais
 const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
 const overlay=document.getElementById('overlay'), octx=overlay.getContext('2d');
-const statusEl=document.getElementById('status'), patternEl=document.getElementById('pattern');
-const confEl=document.getElementById('conf'), nextRecEl=document.getElementById('nextRec');
-const statsEl=document.getElementById('stats'), warningEl=document.getElementById('warning');
+const statusEl=document.getElementById('status'), confEl=document.getElementById('conf'), nextRecEl=document.getElementById('nextRec'), statsEl=document.getElementById('stats'), warningEl=document.getElementById('warning');
 
 let video=document.createElement('video'); video.autoplay=true; video.playsInline=true;
 let stream=null,running=false;
 let acertos=0,erros=0,empates=0;
 let feedbackHistory=[], sequenceHistory=[];
 
-// Classes
+// Mapas de classe
 const classMap={"player":0,"banker":1,"tie":2};
 const invClassMap={0:"player",1:"banker",2:"tie"};
 
-// CNN+LSTM Modelo
-const cnnLstmModel=tf.sequential();
-cnnLstmModel.add(tf.layers.conv2d({inputShape:[64,64,3],filters:16,kernelSize:3,activation:'relu'}));
-cnnLstmModel.add(tf.layers.maxPooling2d({poolSize:2}));
-cnnLstmModel.add(tf.layers.flatten());
-cnnLstmModel.add(tf.layers.repeatVector({n:5}));
-cnnLstmModel.add(tf.layers.lstm({units:32}));
-cnnLstmModel.add(tf.layers.dense({units:3,activation:'softmax'}));
-cnnLstmModel.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
+// CNN + LSTM
+const model=tf.sequential();
+model.add(tf.layers.conv2d({inputShape:[64,64,3],filters:16,kernelSize:3,activation:'relu'}));
+model.add(tf.layers.maxPooling2d({poolSize:2}));
+model.add(tf.layers.flatten());
+model.add(tf.layers.repeatVector({n:5}));
+model.add(tf.layers.lstm({units:32}));
+model.add(tf.layers.dense({units:3,activation:'softmax'}));
+model.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
 
-// Resize canvas e overlay
+// Funções auxiliares
 function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
+function preprocess(frame){return tf.tidy(()=>tf.browser.fromPixels(frame).resizeBilinear([64,64]).toFloat().div(255).expandDims(0));}
 
-// Extrair padrões visuais
-function preprocessImage(frame){
-    return tf.tidy(()=>{
-        let img=tf.browser.fromPixels(frame).resizeBilinear([64,64]).toFloat().div(255);
-        return img.expandDims(0); // [1,64,64,3]
-    });
-}
-
-// Detecta blobs de cores (Player/Banker/Tie)
+// Detecção simples por cor
 function colorRole(r,g,b){
-    if(r>170&&g<80&&b<80)return"banker";
-    if(b>150&&r<80&&g<100)return"player";
-    if(r>180&&g>180&&b<140)return"tie";
-    return null;
+  if(r>170&&g<80&&b<80)return"banker";
+  if(b>150&&r<80&&g<100)return"player";
+  if(r>180&&g>180&&b<140)return"tie";
+  return null;
 }
 
 function detect(frame,w,h){
-    const data=frame.data,points=[],step=5;
-    for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
-        const i=(y*w+x)*4,role=colorRole(data[i],data[i+1],data[i+2]);
-        if(role)points.push({x,y,role});
-    }
-    const clusters=[],dist=10;
-    points.forEach(p=>{
-        let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
-        if(f){f.x=(f.x*f.n+p.x)/(f.n+1); f.y=(f.y*f.n+p.y)/(f.n+1); f.n++;} 
-        else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
-    });
-    return clusters;
+  const data=frame.data, points=[], step=5;
+  for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
+    const i=(y*w+x)*4, role=colorRole(data[i],data[i+1],data[i+2]);
+    if(role) points.push({x,y,role});
+  }
+  const clusters=[], dist=10;
+  points.forEach(p=>{
+    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
+    if(f){f.x=(f.x*f.n+p.x)/(f.n+1); f.y=(f.y*f.n+p.y)/(f.n+1); f.n++;} 
+    else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
+  });
+  return clusters;
 }
 
 function drawOverlay(blobs){
-    octx.clearRect(0,0,overlay.width,overlay.height);
-    blobs.forEach(b=>{
-        octx.beginPath();
-        octx.arc(b.x,b.y,8,0,Math.PI*2);
-        octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
-        octx.lineWidth=2;octx.stroke();
-    });
+  octx.clearRect(0,0,overlay.width,overlay.height);
+  blobs.forEach(b=>{
+    octx.beginPath();
+    octx.arc(b.x,b.y,8,0,Math.PI*2);
+    octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
+    octx.lineWidth=2;octx.stroke();
+  });
 }
 
-// Predição CNN+LSTM
-async function predictNextMove(frame){
-    const input=preprocessImage(frame);
-    const output=cnnLstmModel.predict(input);
-    const arr=output.dataSync();
-    const idx=arr.indexOf(Math.max(...arr));
-    input.dispose(); output.dispose();
-    return {recommendation:invClassMap[idx],confidence:arr[idx]};
+// Predição com histórico
+async function predictNext(frame, seqHistory){
+  const cnnInput=preprocess(frame);
+  const cnnFeatures=model.predict(cnnInput);
+  const seqTensor=tf.tensor([seqHistory.slice(-5).map(r=>{
+    const arr=[0,0,0]; if(r) arr[classMap[r]]=1; return arr;
+  })]);
+  const combined=tf.concat([cnnFeatures, seqTensor.flatten().expandDims(0)],1);
+  const output=tf.layers.dense({units:3,activation:'softmax'}).apply(combined);
+  const arr=output.dataSync();
+  cnnInput.dispose(); seqTensor.dispose(); combined.dispose(); output.dispose();
+  const idx=arr.indexOf(Math.max(...arr));
+  return {recommendation:invClassMap[idx], confidence:arr[idx]};
 }
 
-// Treina incrementalmente
-async function trainModel(frame,label){
-    const input=preprocessImage(frame);
-    const output=tf.tensor([[label===0?1:0,label===1?1:0,label===2?1:0]]);
-    await cnnLstmModel.fit(input,output,{epochs:3});
-    input.dispose(); output.dispose();
-}
-
-// Loop principal
-async function runFrame(){
-    if(!running)return;
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-    const blobs=detect(frame,canvas.width,canvas.height);
-    drawOverlay(blobs);
-
-    const res=await predictNextMove(canvas);
-    patternEl.innerText="CNN+LSTM";
-    confEl.innerText=Math.round(res.confidence*100)+"%";
-    nextRecEl.innerText=res.recommendation;
-    warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
-
-    requestAnimationFrame(runFrame);
+// Treinamento incremental
+async function train(frame,label){
+  const input=preprocess(frame);
+  const output=tf.tensor([[label===0?1:0,label===1?1:0,label===2?1:0]]);
+  await model.fit(input,output,{epochs:3});
+  input.dispose(); output.dispose();
 }
 
 // Estatísticas
 function atualizarStats(){
-    const total=acertos+erros+empates;
-    const perc=total?Math.round(acertos/total*100):0;
-    statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
+  const total=acertos+erros+empates;
+  const perc=total?Math.round(acertos/total*100):0;
+  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
-// Feedback e próxima recomendação imediata
+// Registro de feedback e recomendação contínua
 async function registrar(tipo){
-    const rec=nextRecEl.innerText;
-    feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
+  const rec=nextRecEl.innerText;
+  feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
 
-    if(tipo==="acerto") acertos++;
-    if(tipo==="erro") erros++;
-    if(tipo==="empate") empates++;
+  if(tipo==="acerto") acertos++;
+  if(tipo==="erro") erros++;
+  if(tipo==="empate") empates++;
 
-    // Treina modelo com feedback
-    const label=classMap[rec];
-    await trainModel(canvas,label);
+  sequenceHistory.push(rec);
+  await train(canvas,classMap[rec]);
+  atualizarStats();
 
-    atualizarStats();
+  const next=await predictNext(canvas,sequenceHistory);
+  nextRecEl.innerText=next.recommendation;
+  confEl.innerText=Math.round(next.confidence*100)+"%";
+}
 
-    // Gera nova recomendação imediatamente
-    const next=await predictNextMove(canvas);
-    nextRecEl.innerText=next.recommendation;
-    confEl.innerText=Math.round(next.confidence*100)+"%";
+// Loop principal
+async function runFrame(){
+  if(!running) return;
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+  drawOverlay(detect(frame,canvas.width,canvas.height));
+
+  const res=await predictNext(canvas,sequenceHistory);
+  nextRecEl.innerText=res.recommendation;
+  confEl.innerText=Math.round(res.confidence*100)+"%";
+  warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
+
+  requestAnimationFrame(runFrame);
 }
 
 // Câmera
 async function startCam(){
-    try{
-        stopAll();
-        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-        video.srcObject=stream;
-        video.onloadedmetadata=()=>{resizeCanvas(video.videoWidth,video.videoHeight);running=true;statusEl.innerText="Câmera Traseira Ativa";runFrame();};
-    }catch(e){alert(e);}
+  try{
+    stopAll();
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    video.srcObject=stream;
+    video.onloadedmetadata=()=>{resizeCanvas(video.videoWidth,video.videoHeight);running=true;statusEl.innerText="Câmera Ativa";runFrame();};
+  }catch(e){alert(e);}
 }
 
 function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}octx.clearRect(0,0,overlay.width,overlay.height);}
@@ -194,22 +186,21 @@ document.getElementById('stopBtn').onclick=stopAll;
 document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
 document.getElementById('btnErrou').onclick=()=>registrar("erro");
 document.getElementById('btnEmpate').onclick=()=>registrar("empate");
-
 document.getElementById('sendImg').onclick=()=>{
-    const input=document.createElement('input');input.type='file';input.accept='image/*';
-    input.onchange=e=>{
-        const file=e.target.files[0];if(!file)return;
-        const img=new Image();
-        img.onload=()=>{
-            resizeCanvas(img.width,img.height);
-            ctx.drawImage(img,0,0,canvas.width,canvas.height);
-            drawOverlay(detect(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height));
-            statusEl.innerText="Imagem analisada";
-            runFrame();
-        };
-        img.src=URL.createObjectURL(file);
+  const input=document.createElement('input');input.type='file';input.accept='image/*';
+  input.onchange=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const img=new Image();
+    img.onload=()=>{
+      resizeCanvas(img.width,img.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      drawOverlay(detect(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height));
+      statusEl.innerText="Imagem analisada";
+      runFrame();
     };
-    input.click();
+    img.src=URL.createObjectURL(file);
+  };
+  input.click();
 };
 </script>
 </body>
