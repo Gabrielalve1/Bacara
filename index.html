@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Baccarat Reader Pro+ Extreme Vercel</title>
+<title>Baccarat Reader Pro+ Extreme CNN+LSTM</title>
 <style>
 body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
-#controls, #results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
+#controls,#results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
 canvas{border-radius:10px}
 #panel{width:90%;max-width:920px;background:#0d171c;padding:12px;border-radius:10px;margin-top:10px}
 button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
@@ -16,7 +16,7 @@ button.alt{background:#1a2426;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 </head>
 <body>
-<h1>🔮 Baccarat Reader Pro+ Extreme Vercel</h1>
+<h1>🔮 Baccarat Reader Pro+ Extreme CNN+LSTM</h1>
 
 <div id="controls">
   <button id="startCam" class="alt">📷 Câmera Traseira</button>
@@ -55,17 +55,32 @@ let stream=null,running=false;
 let acertos=0,erros=0,empates=0;
 let feedbackHistory=[], sequenceHistory=[];
 
-// Map classes
+// Classes
 const classMap={"player":0,"banker":1,"tie":2};
 const invClassMap={0:"player",1:"banker",2:"tie"};
 
-// Modelo LSTM simples
-const model=tf.sequential();
-model.add(tf.layers.lstm({units:32,inputShape:[5,3]}));
-model.add(tf.layers.dense({units:3,activation:'softmax'}));
-model.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
+// CNN+LSTM Modelo
+const cnnLstmModel=tf.sequential();
+cnnLstmModel.add(tf.layers.conv2d({inputShape:[64,64,3],filters:16,kernelSize:3,activation:'relu'}));
+cnnLstmModel.add(tf.layers.maxPooling2d({poolSize:2}));
+cnnLstmModel.add(tf.layers.flatten());
+cnnLstmModel.add(tf.layers.repeatVector({n:5}));
+cnnLstmModel.add(tf.layers.lstm({units:32}));
+cnnLstmModel.add(tf.layers.dense({units:3,activation:'softmax'}));
+cnnLstmModel.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
 
+// Resize canvas e overlay
 function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
+
+// Extrair padrões visuais
+function preprocessImage(frame){
+    return tf.tidy(()=>{
+        let img=tf.browser.fromPixels(frame).resizeBilinear([64,64]).toFloat().div(255);
+        return img.expandDims(0); // [1,64,64,3]
+    });
+}
+
+// Detecta blobs de cores (Player/Banker/Tie)
 function colorRole(r,g,b){
     if(r>170&&g<80&&b<80)return"banker";
     if(b>150&&r<80&&g<100)return"player";
@@ -98,73 +113,70 @@ function drawOverlay(blobs){
     });
 }
 
-// Funções TensorFlow
-function sequenceToTensor(seq){
-    const tensorData=[];
-    for(let i=0;i<5;i++){
-        const row=[0,0,0];
-        const val=seq[seq.length-5+i];
-        if(val!==undefined) row[classMap[val]]=1;
-        tensorData.push(row);
-    }
-    return tf.tensor([tensorData]);
-}
-
-function predictNextMove(seq){
-    if(seq.length<1) return {recommendation:"—",confidence:0,explanation:"Sem histórico suficiente"};
-    const input=sequenceToTensor(seq);
-    const output=model.predict(input);
-    const arr=output.arraySync()[0];
+// Predição CNN+LSTM
+async function predictNextMove(frame){
+    const input=preprocessImage(frame);
+    const output=cnnLstmModel.predict(input);
+    const arr=output.dataSync();
     const idx=arr.indexOf(Math.max(...arr));
-    return {recommendation:invClassMap[idx],confidence:arr[idx],explanation:`Predição baseada nos últimos ${Math.min(5,seq.length)} movimentos.`};
+    input.dispose(); output.dispose();
+    return {recommendation:invClassMap[idx],confidence:arr[idx]};
 }
 
-function trainModel(seq){
-    if(seq.length<6) return;
-    const inputSeq=sequenceToTensor(seq.slice(0,5));
-    const outputSeq=[0,0,0]; outputSeq[classMap[seq[5]]]=1;
-    const target=tf.tensor([outputSeq]);
-    model.fit(inputSeq,target,{epochs:5}).then(()=>inputSeq.dispose(),()=>target.dispose());
+// Treina incrementalmente
+async function trainModel(frame,label){
+    const input=preprocessImage(frame);
+    const output=tf.tensor([[label===0?1:0,label===1?1:0,label===2?1:0]]);
+    await cnnLstmModel.fit(input,output,{epochs:3});
+    input.dispose(); output.dispose();
 }
 
-// Análise principal
-function analyze(blobs){
-    const seq=blobs.map(b=>b.role);
-    if(seq.length>0) sequenceHistory.push(seq[seq.length-1]);
-    return predictNextMove(sequenceHistory);
-}
-
-function runFrame(){
+// Loop principal
+async function runFrame(){
     if(!running)return;
     ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
     const blobs=detect(frame,canvas.width,canvas.height);
     drawOverlay(blobs);
-    const res=analyze(blobs);
-    patternEl.innerText="IA LSTM";
+
+    const res=await predictNextMove(canvas);
+    patternEl.innerText="CNN+LSTM";
     confEl.innerText=Math.round(res.confidence*100)+"%";
     nextRecEl.innerText=res.recommendation;
     warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
+
     requestAnimationFrame(runFrame);
 }
 
+// Estatísticas
 function atualizarStats(){
     const total=acertos+erros+empates;
     const perc=total?Math.round(acertos/total*100):0;
     statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
-function registrar(tipo){
+// Feedback e próxima recomendação imediata
+async function registrar(tipo){
     const rec=nextRecEl.innerText;
     feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
+
     if(tipo==="acerto") acertos++;
     if(tipo==="erro") erros++;
     if(tipo==="empate") empates++;
-    if(sequenceHistory.length>=6) trainModel(sequenceHistory.slice(-6));
+
+    // Treina modelo com feedback
+    const label=classMap[rec];
+    await trainModel(canvas,label);
+
     atualizarStats();
+
+    // Gera nova recomendação imediatamente
+    const next=await predictNextMove(canvas);
+    nextRecEl.innerText=next.recommendation;
+    confEl.innerText=Math.round(next.confidence*100)+"%";
 }
 
-// Câmera e eventos
+// Câmera
 async function startCam(){
     try{
         stopAll();
@@ -176,11 +188,13 @@ async function startCam(){
 
 function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}octx.clearRect(0,0,overlay.width,overlay.height);}
 
+// Eventos
 document.getElementById('startCam').onclick=startCam;
 document.getElementById('stopBtn').onclick=stopAll;
 document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
 document.getElementById('btnErrou').onclick=()=>registrar("erro");
 document.getElementById('btnEmpate').onclick=()=>registrar("empate");
+
 document.getElementById('sendImg').onclick=()=>{
     const input=document.createElement('input');input.type='file';input.accept='image/*';
     input.onchange=e=>{
@@ -189,15 +203,9 @@ document.getElementById('sendImg').onclick=()=>{
         img.onload=()=>{
             resizeCanvas(img.width,img.height);
             ctx.drawImage(img,0,0,canvas.width,canvas.height);
-            const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-            const blobs=detect(frame,canvas.width,canvas.height);
-            drawOverlay(blobs);
-            const res=analyze(blobs);
-            patternEl.innerText="IA LSTM";
-            confEl.innerText=Math.round(res.confidence*100)+"%";
-            nextRecEl.innerText=res.recommendation;
-            warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
-            statusEl.innerText="Imagem analisada";running=false;
+            drawOverlay(detect(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height));
+            statusEl.innerText="Imagem analisada";
+            runFrame();
         };
         img.src=URL.createObjectURL(file);
     };
