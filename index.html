@@ -1,5 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Baccarat Reader Pro — Auto (Vercel Ready)</title>
+<style>
+  body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
+  h1{color:#00ffc3}
+  #controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;justify-content:center}
+  button,input{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
+  button{background:#00ffc3;color:#000;font-weight:bold}
+  button.alt{background:#1a2426;color:#fff}
+  #canvasWrap{position:relative;width:90%;max-width:920px}
+  canvas,img{width:100%;border-radius:10px}
+  #overlay{position:absolute;top:0;left:0;pointer-events:none}
+  #panel{width:90%;max-width:920px;margin-top:10px;background:#0d171c;padding:12px;border-radius:10px}
+  #results{display:flex;gap:8px;margin-top:8px;justify-content:center}
+  #stats{margin-top:8px;font-size:15px;text-align:center;color:#00ffc3}
+</style>
+</head>
+<body>
+<h1>🔎 Baccarat Reader Pro (Auto)</h1>
+
+<div id="controls">
+  <button id="startCam" class="alt">📷 Câmera Traseira</button>
+  <button id="sendImg" class="alt">📸 Enviar Foto</button>
+  <button id="stopBtn" class="alt">⛔ Parar</button>
+</div>
+
+<div id="canvasWrap">
+  <canvas id="canvas"></canvas>
+  <canvas id="overlay"></canvas>
+</div>
+
+<div id="panel">
+  <div><b>Status:</b> <span id="status">Parado</span></div>
+  <div><b>Padrão:</b> <span id="pattern">—</span></div>
+  <div><b>Confiança:</b> <span id="conf">0%</span></div>
+
+  <div id="results">
+    <button id="btnAcertou" style="background:#00ff66">✅ Acertou</button>
+    <button id="btnErrou" style="background:#ff3366">❌ Errou</button>
+    <button id="btnEmpate" style="background:#ffcc00">⚖️ Empatou</button>
+  </div>
+
+  <div id="stats">Histórico: 0 acertos / 0 erros / 0 empates (0%)</div>
+</div>
+
 <script>
-// === Versão ProCode-2025: feedback adaptativo e sequência contínua ===
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 const overlay=document.getElementById('overlay');
@@ -9,16 +57,17 @@ const patternEl=document.getElementById('pattern');
 const confEl=document.getElementById('conf');
 const statsEl=document.getElementById('stats');
 
-let video=document.createElement('video'); video.autoplay=true; video.playsInline=true;
-let stream=null, running=false;
+let video=document.createElement('video');
+video.autoplay=true;video.playsInline=true;
+let stream=null;let running=false;
 
-// Histórico e pesos adaptativos
-let sequence=[]; // sequência simulada baseada no gráfico enviado
-let weights={player:1, banker:1, tie:1}; 
-let acertos=0, erros=0, empates=0;
+let acertos=0,erros=0,empates=0;
+let feedbackHistory=[];
 
-// === Utilitários ===
-function resizeCanvas(w,h){canvas.width=w; canvas.height=h; overlay.width=w; overlay.height=h;}
+function resizeCanvas(w,h){
+  canvas.width=w; canvas.height=h;
+  overlay.width=w; overlay.height=h;
+}
 
 function colorRole(r,g,b){
   if(r>170&&g<80&&b<80) return "banker";
@@ -27,22 +76,20 @@ function colorRole(r,g,b){
   return null;
 }
 
-// Detecta bolinhas na imagem
 function detect(frame,w,h){
   const data=frame.data,step=5;
-  const pts=[];
+  const points=[];
   for(let y=0;y<h;y+=step){
     for(let x=0;x<w;x+=step){
       const i=(y*w+x)*4;
       const role=colorRole(data[i],data[i+1],data[i+2]);
-      if(role) pts.push({x,y,role});
+      if(role) points.push({x,y,role});
     }
   }
-  // Clustering simplificado
-  const clusters=[], dist=10;
-  pts.forEach(p=>{
-    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist && c.role===p.role);
-    if(f){ f.x=(f.x*f.n+p.x)/(f.n+1); f.y=(f.y*f.n+p.y)/(f.n+1); f.n++; }
+  const clusters=[]; const dist=10;
+  points.forEach(p=>{
+    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
+    if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;} 
     else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
   });
   return clusters;
@@ -54,79 +101,55 @@ function drawOverlay(blobs){
     octx.beginPath();
     octx.arc(b.x,b.y,8,0,Math.PI*2);
     octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
-    octx.lineWidth=2; octx.stroke();
+    octx.lineWidth=2;octx.stroke();
   });
 }
 
-// === Análise inteligente adaptativa ===
 function analyze(blobs){
-  let seq=blobs.map(b=>b.role);
-  if(sequence.length>0) seq = sequence.concat(seq); // combina sequência interna
-  if(seq.length===0) return {name:"—", conf:0};
-
-  let s=seq.join("");
-  let pattern="Padrão neutro", conf=0.5;
-
-  if(/(player){3,}/.test(s)) { pattern="Surf Player"; conf=0.9; }
-  else if(/(banker){3,}/.test(s)) { pattern="Surf Banker"; conf=0.9; }
-  else if(seq.every((x,i,a)=>i===0||x!==a[i-1])) { pattern="Xadrez"; conf=0.85; }
-  else if(seq.includes("tie")) { pattern="Empates frequentes"; conf=0.7; }
-
-  return {name:pattern, conf};
+  const seq=blobs.map(b=>b.role);
+  if(seq.length===0)return {name:"—",conf:0};
+  const s=seq.join("");
+  if(/(player){3,}/.test(s))return {name:"Surf Player",conf:0.9};
+  if(/(banker){3,}/.test(s))return {name:"Surf Banker",conf:0.9};
+  if(seq.every((x,i,a)=>i===0||x!==a[i-1]))return {name:"Xadrez",conf:0.85};
+  if(seq.includes("tie"))return {name:"Empates frequentes",conf:0.7};
+  return {name:"Padrão neutro",conf:0.5};
 }
 
-// Gera próxima recomendação baseada em pesos e sequência
-function nextRecommendation(){
-  const keys = Object.keys(weights);
-  const sum = keys.reduce((a,k)=>a+weights[k],0);
-  let r=Math.random()*sum;
-  for(const k of keys){
-    if(r<weights[k]) return k;
-    r-=weights[k];
-  }
-  return "player"; // fallback
+function speak(txt){
+  if(!("speechSynthesis" in window))return;
+  const u=new SpeechSynthesisUtterance(txt);
+  u.lang="pt-BR";speechSynthesis.cancel();speechSynthesis.speak(u);
 }
 
-// Atualiza estatísticas visuais
+function runFrame(){
+  if(!running)return;
+  try{
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const blobs=detect(frame,canvas.width,canvas.height);
+    drawOverlay(blobs);
+    const p=analyze(blobs);
+    patternEl.innerText=p.name;
+    confEl.innerText=Math.round(p.conf*100)+"%";
+  }catch(e){console.error(e);}
+  requestAnimationFrame(runFrame);
+}
+
 function atualizarStats(){
   const total=acertos+erros+empates;
   const perc=total?Math.round((acertos/total)*100):0;
   statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
-// Feedback adaptativo
 function registrar(tipo){
-  const rec=nextRecommendation();
-  sequence.push(rec); // atualiza "gráfico mental"
-  if(tipo==="acerto") { acertos++; weights[rec]*=1.2; }
-  if(tipo==="erro") { erros++; weights[rec]*=0.7; Object.keys(weights).forEach(k=>{if(k!==rec) weights[k]*=1.1}); }
-  if(tipo==="empate") { empates++; weights.tie*=1.2; }
-
-  // normaliza pesos
-  const totalW=weights.player+weights.banker+weights.tie;
-  Object.keys(weights).forEach(k=>weights[k]/=totalW);
-
+  if(tipo==="acerto")acertos++;
+  if(tipo==="erro")erros++;
+  if(tipo==="empate")empates++;
+  feedbackHistory.push({tipo,padrao:patternEl.innerText});
   atualizarStats();
-  const nextRec=nextRecommendation();
-  patternEl.innerText=nextRec;
-  confEl.innerText=Math.round(weights[nextRec]*100)+"%";
-  speak(`Próxima recomendação: ${nextRec}`);
 }
 
-// === Loop de análise contínua ===
-function runFrame(){
-  if(!running) return;
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-  const blobs=detect(frame,canvas.width,canvas.height);
-  drawOverlay(blobs);
-  const a=analyze(blobs);
-  patternEl.innerText=a.name;
-  confEl.innerText=Math.round(a.conf*100)+"%";
-  requestAnimationFrame(runFrame);
-}
-
-// === Funções de captura ===
 async function startCam(){
   try{
     stopAll();
@@ -135,15 +158,19 @@ async function startCam(){
     video.onloadedmetadata=()=>{
       resizeCanvas(video.videoWidth,video.videoHeight);
       running=true;
-      statusEl.innerText="Câmera Ativa (Auto)";
+      statusEl.innerText="Câmera Traseira Ativa";
       runFrame();
     };
   }catch(e){alert(e);}
 }
 
-function stopAll(){ running=false; statusEl.innerText="Parado"; if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;} octx.clearRect(0,0,overlay.width,overlay.height); }
+function stopAll(){
+  running=false;
+  statusEl.innerText="Parado";
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  octx.clearRect(0,0,overlay.width,overlay.height);
+}
 
-// Botões
 document.getElementById('startCam').onclick=startCam;
 document.getElementById('stopBtn').onclick=stopAll;
 document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
@@ -152,10 +179,9 @@ document.getElementById('btnEmpate').onclick=()=>registrar("empate");
 
 document.getElementById('sendImg').onclick=()=>{
   const input=document.createElement('input');
-  input.type='file';input.accept='image/*';
+  input.type='file'; input.accept='image/*';
   input.onchange=e=>{
-    const file=e.target.files[0];
-    if(!file) return;
+    const file=e.target.files[0]; if(!file)return;
     const img=new Image();
     img.onload=()=>{
       resizeCanvas(img.width,img.height);
@@ -163,15 +189,17 @@ document.getElementById('sendImg').onclick=()=>{
       const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
       const blobs=detect(frame,canvas.width,canvas.height);
       drawOverlay(blobs);
-      const a=analyze(blobs);
-      patternEl.innerText=a.name;
-      confEl.innerText=Math.round(a.conf*100)+"%";
+      const p=analyze(blobs);
+      patternEl.innerText=p.name;
+      confEl.innerText=Math.round(p.conf*100)+"%";
       statusEl.innerText="Imagem analisada";
-      sequence=blobs.map(b=>b.role); // inicializa sequência mental
-      speak(`Padrão ${a.name}. Confiança ${Math.round(a.conf*100)}%.`);
+      speak(`Padrão ${p.name}. Confiança ${Math.round(p.conf*100)}%.`);
+      running=false;
     };
     img.src=URL.createObjectURL(file);
   };
   input.click();
 };
 </script>
+</body>
+</html>
