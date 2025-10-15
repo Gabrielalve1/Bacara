@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Baccarat Reader Pro+ Extreme AI TensorFlow</title>
+<title>Baccarat Reader Pro+ Extreme Vercel</title>
 <style>
 body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
 #controls, #results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
@@ -16,16 +16,19 @@ button.alt{background:#1a2426;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 </head>
 <body>
-<h1>🔮 Baccarat Reader Pro+ Extreme AI TensorFlow</h1>
+<h1>🔮 Baccarat Reader Pro+ Extreme Vercel</h1>
+
 <div id="controls">
   <button id="startCam" class="alt">📷 Câmera Traseira</button>
   <button id="sendImg" class="alt">📸 Enviar Foto</button>
   <button id="stopBtn" class="alt">⛔ Parar</button>
 </div>
+
 <div>
   <canvas id="canvas"></canvas>
   <canvas id="overlay"></canvas>
 </div>
+
 <div id="panel">
   <div><b>Status:</b> <span id="status">Parado</span></div>
   <div><b>Padrão:</b> <span id="pattern">—</span></div>
@@ -50,124 +53,125 @@ const statsEl=document.getElementById('stats'), warningEl=document.getElementByI
 let video=document.createElement('video'); video.autoplay=true; video.playsInline=true;
 let stream=null,running=false;
 let acertos=0,erros=0,empates=0;
-let feedbackHistory=[];
-let sequenceHistory=[]; // Histórico de padrões
+let feedbackHistory=[], sequenceHistory=[];
+
+// Map classes
 const classMap={"player":0,"banker":1,"tie":2};
 const invClassMap={0:"player",1:"banker",2:"tie"};
 
-// Cria modelo LSTM simples
+// Modelo LSTM simples
 const model=tf.sequential();
-model.add(tf.layers.lstm({units:32,inputShape:[5,3],returnSequences:false}));
+model.add(tf.layers.lstm({units:32,inputShape:[5,3]}));
 model.add(tf.layers.dense({units:3,activation:'softmax'}));
 model.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
 
-// Converte sequência para tensor one-hot
-function sequenceToTensor(seq){
-  const tensorData=[];
-  for(let i=0;i<5;i++){
-    const row=[0,0,0];
-    const val=seq[seq.length-5+i];
-    if(val!==undefined) row[classMap[val]]=1;
-    tensorData.push(row);
-  }
-  return tf.tensor([tensorData]); // [1,5,3]
-}
-
-function predictNextMove(seq){
-  if(seq.length<1) return {recommendation:"—",confidence:0,explanation:"Sem histórico suficiente"};
-  const input=sequenceToTensor(seq);
-  const output=model.predict(input);
-  const arr=output.arraySync()[0];
-  const idx=arr.indexOf(Math.max(...arr));
-  const rec=invClassMap[idx];
-  return {recommendation:rec,confidence:arr[idx],explanation:`Predição baseada nos últimos ${Math.min(5,seq.length)} movimentos.`};
-}
-
-function trainModel(seq,feedback){
-  if(seq.length<6) return; // precisa de pelo menos 6 para treino
-  const inputSeq=sequenceToTensor(seq.slice(0,5));
-  const outputSeq=[0,0,0]; outputSeq[classMap[seq[5]]]=1;
-  const target=tf.tensor([outputSeq]);
-  model.fit(inputSeq,target,{epochs:5}).then(()=>inputSeq.dispose(),()=>target.dispose());
-}
-
 function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
 function colorRole(r,g,b){
-  if(r>170&&g<80&&b<80)return"banker";
-  if(b>150&&r<80&&g<100)return"player";
-  if(r>180&&g>180&&b<140)return"tie";
-  return null;
+    if(r>170&&g<80&&b<80)return"banker";
+    if(b>150&&r<80&&g<100)return"player";
+    if(r>180&&g>180&&b<140)return"tie";
+    return null;
 }
 
 function detect(frame,w,h){
-  const data=frame.data,points=[],step=5;
-  for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
-    const i=(y*w+x)*4,role=colorRole(data[i],data[i+1],data[i+2]);
-    if(role)points.push({x,y,role});
-  }
-  const clusters=[],dist=10;
-  points.forEach(p=>{
-    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
-    if(f){f.x=(f.x*f.n+p.x)/(f.n+1); f.y=(f.y*f.n+p.y)/(f.n+1); f.n++;} 
-    else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
-  });
-  return clusters;
+    const data=frame.data,points=[],step=5;
+    for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
+        const i=(y*w+x)*4,role=colorRole(data[i],data[i+1],data[i+2]);
+        if(role)points.push({x,y,role});
+    }
+    const clusters=[],dist=10;
+    points.forEach(p=>{
+        let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
+        if(f){f.x=(f.x*f.n+p.x)/(f.n+1); f.y=(f.y*f.n+p.y)/(f.n+1); f.n++;} 
+        else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
+    });
+    return clusters;
 }
 
 function drawOverlay(blobs){
-  octx.clearRect(0,0,overlay.width,overlay.height);
-  blobs.forEach(b=>{
-    octx.beginPath();
-    octx.arc(b.x,b.y,8,0,Math.PI*2);
-    octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
-    octx.lineWidth=2;octx.stroke();
-  });
+    octx.clearRect(0,0,overlay.width,overlay.height);
+    blobs.forEach(b=>{
+        octx.beginPath();
+        octx.arc(b.x,b.y,8,0,Math.PI*2);
+        octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
+        octx.lineWidth=2;octx.stroke();
+    });
 }
 
+// Funções TensorFlow
+function sequenceToTensor(seq){
+    const tensorData=[];
+    for(let i=0;i<5;i++){
+        const row=[0,0,0];
+        const val=seq[seq.length-5+i];
+        if(val!==undefined) row[classMap[val]]=1;
+        tensorData.push(row);
+    }
+    return tf.tensor([tensorData]);
+}
+
+function predictNextMove(seq){
+    if(seq.length<1) return {recommendation:"—",confidence:0,explanation:"Sem histórico suficiente"};
+    const input=sequenceToTensor(seq);
+    const output=model.predict(input);
+    const arr=output.arraySync()[0];
+    const idx=arr.indexOf(Math.max(...arr));
+    return {recommendation:invClassMap[idx],confidence:arr[idx],explanation:`Predição baseada nos últimos ${Math.min(5,seq.length)} movimentos.`};
+}
+
+function trainModel(seq){
+    if(seq.length<6) return;
+    const inputSeq=sequenceToTensor(seq.slice(0,5));
+    const outputSeq=[0,0,0]; outputSeq[classMap[seq[5]]]=1;
+    const target=tf.tensor([outputSeq]);
+    model.fit(inputSeq,target,{epochs:5}).then(()=>inputSeq.dispose(),()=>target.dispose());
+}
+
+// Análise principal
 function analyze(blobs){
-  const seq=blobs.map(b=>b.role);
-  if(seq.length>0) sequenceHistory.push(seq[seq.length-1]);
-  const result=predictNextMove(sequenceHistory);
-  return result;
+    const seq=blobs.map(b=>b.role);
+    if(seq.length>0) sequenceHistory.push(seq[seq.length-1]);
+    return predictNextMove(sequenceHistory);
 }
 
 function runFrame(){
-  if(!running)return;
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-  const blobs=detect(frame,canvas.width,canvas.height);
-  drawOverlay(blobs);
-  const res=analyze(blobs);
-  patternEl.innerText="IA LSTM";
-  confEl.innerText=Math.round(res.confidence*100)+"%";
-  nextRecEl.innerText=res.recommendation;
-  warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
-  requestAnimationFrame(runFrame);
+    if(!running)return;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const blobs=detect(frame,canvas.width,canvas.height);
+    drawOverlay(blobs);
+    const res=analyze(blobs);
+    patternEl.innerText="IA LSTM";
+    confEl.innerText=Math.round(res.confidence*100)+"%";
+    nextRecEl.innerText=res.recommendation;
+    warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
+    requestAnimationFrame(runFrame);
 }
 
 function atualizarStats(){
-  const total=acertos+erros+empates;
-  const perc=total?Math.round(acertos/total*100):0;
-  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
+    const total=acertos+erros+empates;
+    const perc=total?Math.round(acertos/total*100):0;
+    statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
 function registrar(tipo){
-  const rec=nextRecEl.innerText;
-  feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
-  if(tipo==="acerto") acertos++;
-  if(tipo==="erro") erros++;
-  if(tipo==="empate") empates++;
-  if(sequenceHistory.length>=6) trainModel(sequenceHistory.slice(-6),tipo);
-  atualizarStats();
+    const rec=nextRecEl.innerText;
+    feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
+    if(tipo==="acerto") acertos++;
+    if(tipo==="erro") erros++;
+    if(tipo==="empate") empates++;
+    if(sequenceHistory.length>=6) trainModel(sequenceHistory.slice(-6));
+    atualizarStats();
 }
 
+// Câmera e eventos
 async function startCam(){
-  try{
-    stopAll();
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    video.srcObject=stream;
-    video.onloadedmetadata=()=>{resizeCanvas(video.videoWidth,video.videoHeight);running=true;statusEl.innerText="Câmera Traseira Ativa";runFrame();};
-  }catch(e){alert(e);}
+    try{
+        stopAll();
+        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+        video.srcObject=stream;
+        video.onloadedmetadata=()=>{resizeCanvas(video.videoWidth,video.videoHeight);running=true;statusEl.innerText="Câmera Traseira Ativa";runFrame();};
+    }catch(e){alert(e);}
 }
 
 function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}octx.clearRect(0,0,overlay.width,overlay.height);}
@@ -178,26 +182,26 @@ document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
 document.getElementById('btnErrou').onclick=()=>registrar("erro");
 document.getElementById('btnEmpate').onclick=()=>registrar("empate");
 document.getElementById('sendImg').onclick=()=>{
-  const input=document.createElement('input');input.type='file';input.accept='image/*';
-  input.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
-    const img=new Image();
-    img.onload=()=>{
-      resizeCanvas(img.width,img.height);
-      ctx.drawImage(img,0,0,canvas.width,canvas.height);
-      const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-      const blobs=detect(frame,canvas.width,canvas.height);
-      drawOverlay(blobs);
-      const res=analyze(blobs);
-      patternEl.innerText="IA LSTM";
-      confEl.innerText=Math.round(res.confidence*100)+"%";
-      nextRecEl.innerText=res.recommendation;
-      warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
-      statusEl.innerText="Imagem analisada";running=false;
+    const input=document.createElement('input');input.type='file';input.accept='image/*';
+    input.onchange=e=>{
+        const file=e.target.files[0];if(!file)return;
+        const img=new Image();
+        img.onload=()=>{
+            resizeCanvas(img.width,img.height);
+            ctx.drawImage(img,0,0,canvas.width,canvas.height);
+            const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+            const blobs=detect(frame,canvas.width,canvas.height);
+            drawOverlay(blobs);
+            const res=analyze(blobs);
+            patternEl.innerText="IA LSTM";
+            confEl.innerText=Math.round(res.confidence*100)+"%";
+            nextRecEl.innerText=res.recommendation;
+            warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
+            statusEl.innerText="Imagem analisada";running=false;
+        };
+        img.src=URL.createObjectURL(file);
     };
-    img.src=URL.createObjectURL(file);
-  };
-  input.click();
+    input.click();
 };
 </script>
 </body>
