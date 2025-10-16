@@ -1,11 +1,11 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Baccarat AI Pro – Contínuo</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Baccarat Reader – AI Pro</title>
 <style>
-body{margin:0;font-family:Arial,sans-serif;background:#0b1419;color:#e9f9f3;display:flex;flex-direction:column;align-items:center;padding:12px;}
+body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
 h1{color:#00ffc3}
 #controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;justify-content:center}
 button,input{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
@@ -17,31 +17,36 @@ canvas,img{width:100%;border-radius:10px}
 #panel{width:90%;max-width:920px;margin-top:10px;background:#0d171c;padding:12px;border-radius:10px}
 #results{display:flex;gap:8px;margin-top:8px;justify-content:center}
 #stats{margin-top:8px;font-size:15px;text-align:center;color:#00ffc3}
-#warning{color:#ffcc00;font-weight:700;margin-top:8px}
+#warning{margin-top:6px;color:#ffcc00;font-weight:700}
 </style>
 </head>
 <body>
-<h1>🔮 Baccarat AI Pro – Contínuo</h1>
+<h1>🔎 Baccarat Reader AI Pro</h1>
+
 <div id="controls">
   <button id="startCam" class="alt">📷 Câmera</button>
   <button id="sendImg" class="alt">📸 Enviar Foto</button>
   <button id="stopBtn" class="alt">⛔ Parar</button>
 </div>
+
 <div id="canvasWrap">
   <canvas id="canvas"></canvas>
   <canvas id="overlay"></canvas>
 </div>
+
 <div id="panel">
   <div><b>Status:</b> <span id="status">Parado</span></div>
-  <div><b>Padrão:</b> <span id="pattern">—</span></div>
+  <div><b>Recomendação:</b> <span id="pattern">—</span></div>
   <div><b>Confiança:</b> <span id="conf">0%</span></div>
+  <div id="warning">⚠️</div>
+
   <div id="results">
     <button id="btnAcertou" style="background:#00ff66">✅ Acertou</button>
     <button id="btnErrou" style="background:#ff3366">❌ Errou</button>
     <button id="btnEmpate" style="background:#ffcc00">⚖️ Empatou</button>
   </div>
+
   <div id="stats">Histórico: 0 acertos / 0 erros / 0 empates (0%)</div>
-  <div id="warning"></div>
 </div>
 
 <script>
@@ -57,14 +62,16 @@ const warningEl=document.getElementById('warning');
 
 let video=document.createElement('video');
 video.autoplay=true;video.playsInline=true;
-let stream=null;let running=false;
+let stream=null,running=false;
 
-let total=0,acertos=0,erros=0,empates=0;
-let sequence=[]; // sequência histórica Player/Banker/Tie
-let feedbackHistory=[]; // acerto/erro/empate
+let sequence=[],feedbackHistory=[];
+let predictLast=null;
+let acertos=0,erros=0,empates=0;
 
-function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
+// Pesos adaptativos iniciais
+let weights={player:1,banker:1,tie:1};
 
+// Detecta cores
 function colorRole(r,g,b){
   if(r>170&&g<80&&b<80) return "banker";
   if(b>150&&r<80&&g<100) return "player";
@@ -72,19 +79,18 @@ function colorRole(r,g,b){
   return null;
 }
 
+// Detecta blobs e clusters
 function detect(frame,w,h){
   const data=frame.data,step=5;
   const pts=[];
   for(let y=0;y<h;y+=step){
     for(let x=0;x<w;x+=step){
       const i=(y*w+x)*4;
-      const r=data[i],g=data[i+1],b=data[i+2];
-      const role=colorRole(r,g,b);
+      const role=colorRole(data[i],data[i+1],data[i+2]);
       if(role) pts.push({x,y,role});
     }
   }
-  const clusters=[];
-  const dist=10;
+  const clusters=[],dist=10;
   pts.forEach(p=>{
     let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
     if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;} 
@@ -93,6 +99,7 @@ function detect(frame,w,h){
   return clusters;
 }
 
+// Desenha overlay
 function drawOverlay(blobs){
   octx.clearRect(0,0,overlay.width,overlay.height);
   blobs.forEach(b=>{
@@ -103,44 +110,72 @@ function drawOverlay(blobs){
   });
 }
 
+// Analisa e prevê com pesos adaptativos
 function analyze(blobs){
   const seq=blobs.map(b=>b.role);
-  if(seq.length>0) sequence.push(...seq);
-  const recent=sequence.slice(-10); // últimas 10 jogadas
-  if(recent.length===0){patternEl.innerText="—";confEl.innerText="0%";return {recommendation:"player",confidence:0.5,explanation:"Sem dados suficientes"};}
-  
-  // Estratégia: streaks e alternâncias
-  let next="player"; let conf=0.5;
-  if(/(player){2,}/.test(recent.join(""))){next="player";conf=0.8;}
-  else if(/(banker){2,}/.test(recent.join(""))){next="banker";conf=0.8;}
-  else if(recent.includes("tie")){next="tie";conf=0.6;}
-  else{next=Math.random()>0.5?"player":"banker";conf=0.55;}
-  
-  // Ajuste por feedback
-  feedbackHistory.forEach(f=>{
-    if(f.recommendation===next && f.tipo==="erro") conf*=0.7;
-    if(f.recommendation===next && f.tipo==="acerto") conf=Math.min(conf*1.2,1);
-  });
+  if(seq.length===0){patternEl.innerText="—";confEl.innerText="0%"; warningEl.innerText="⚠️ Leitura fraca"; return {recommendation:"—",confidence:0};}
 
-  patternEl.innerText=next;
-  confEl.innerText=Math.round(conf*100)+"%";
-  return {recommendation:next,confidence:conf,explanation:"Análise de streaks e alternâncias, ajustada por feedback histórico"};
+  const counts={player:0,banker:0,tie:0};
+  seq.forEach(r=>counts[r]++);
+  // Ajuste por pesos
+  counts.player*=weights.player; counts.banker*=weights.banker; counts.tie*=weights.tie;
+
+  // Predição
+  let recommendation="player",maxVal=counts.player;
+  if(counts.banker>maxVal){recommendation="banker";maxVal=counts.banker;}
+  if(counts.tie>maxVal){recommendation="tie";maxVal=counts.tie;}
+  const confidence=Math.min(1, maxVal/seq.length);
+
+  // Interface
+  patternEl.innerText=recommendation;
+  confEl.innerText=Math.round(confidence*100)+"%";
+  warningEl.innerText=seq.length<5?"⚠️ Leitura fraca":"";
+
+  return {recommendation,confidence,explanation:"Padrão detectado + pesos adaptativos"};
 }
 
-function speak(txt){
-  if(!("speechSynthesis" in window))return;
-  const u=new SpeechSynthesisUtterance(txt);
-  u.lang="pt-BR";speechSynthesis.cancel();speechSynthesis.speak(u);
-}
-
-function runFrame(){
-  if(!running)return;
+// Loop contínuo
+function runContinuousFrame(){
+  if(!running) return;
   ctx.drawImage(video,0,0,canvas.width,canvas.height);
   const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
   const blobs=detect(frame,canvas.width,canvas.height);
   drawOverlay(blobs);
-  const p=analyze(blobs);
-  requestAnimationFrame(runFrame);
+
+  if(blobs.length>0) sequence.push(...blobs.map(b=>b.role));
+  if(sequence.length>50) sequence=sequence.slice(-50);
+
+  predictLast=analyze(blobs);
+  requestAnimationFrame(runContinuousFrame);
+}
+
+// Câmera traseira
+async function startCam(){
+  try{
+    stopAll();
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    video.srcObject=stream;
+    video.onloadedmetadata=()=>{
+      resizeCanvas(video.videoWidth,video.videoHeight);
+      running=true;statusEl.innerText="Câmera Ativa (AI)";
+      runContinuousFrame();
+    };
+  }catch(e){alert(e);}
+}
+
+// Feedback adaptativo
+function registrar(tipo){
+  if(!predictLast) return;
+  feedbackHistory.push({tipo:tipo,recommendation:predictLast.recommendation});
+  // Atualiza pesos
+  if(tipo==="acerto") weights[predictLast.recommendation]+=0.2;
+  if(tipo==="erro") weights[predictLast.recommendation]*=0.8;
+  if(tipo==="empate") weights.tie+=0.1;
+
+  if(tipo==="acerto") acertos++;
+  if(tipo==="erro") erros++;
+  if(tipo==="empate") empates++;
+  atualizarStats();
 }
 
 function atualizarStats(){
@@ -149,54 +184,13 @@ function atualizarStats(){
   statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
-function registrar(tipo){
-  const last=predictLast;
-  if(!last)return;
-  feedbackHistory.push({tipo:tipo,recommendation:last.recommendation});
-  if(tipo==="acerto")acertos++;
-  if(tipo==="erro")erros++;
-  if(tipo==="empate")empates++;
-  atualizarStats();
-}
-
-let predictLast=null;
-
-async function startCam(){
-  try{
-    stopAll();
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    video.srcObject=stream;
-    video.onloadedmetadata=()=>{
-      resizeCanvas(video.videoWidth,video.videoHeight);
-      running=true;statusEl.innerText="Câmera Ativa (Auto)";
-      function frameLoop(){
-        runFrame();
-        predictLast=analyze({map:()=>[]}); // mantém última recomendação
-        requestAnimationFrame(frameLoop);
-      }
-      frameLoop();
-    };
-  }catch(e){alert(e);}
-}
-
-function stopAll(){
-  running=false;statusEl.innerText="Parado";
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
-  octx.clearRect(0,0,overlay.width,overlay.height);
-}
-
-document.getElementById('startCam').onclick=startCam;
-document.getElementById('stopBtn').onclick=stopAll;
-document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
-document.getElementById('btnErrou').onclick=()=>registrar("erro");
-document.getElementById('btnEmpate').onclick=()=>registrar("empate");
-
+// Envio de foto
 document.getElementById('sendImg').onclick=()=>{
   const input=document.createElement('input');
   input.type='file';input.accept='image/*';
   input.onchange=e=>{
     const file=e.target.files[0];
-    if(!file)return;
+    if(!file) return;
     const img=new Image();
     img.onload=()=>{
       resizeCanvas(img.width,img.height);
@@ -205,13 +199,23 @@ document.getElementById('sendImg').onclick=()=>{
       const blobs=detect(frame,canvas.width,canvas.height);
       drawOverlay(blobs);
       predictLast=analyze(blobs);
-      speak(`Padrão ${predictLast.recommendation}. Confiança ${Math.round(predictLast.confidence*100)}%.`);
       statusEl.innerText="Imagem analisada";
     };
     img.src=URL.createObjectURL(file);
   };
   input.click();
 };
+
+// Stop e resize
+function stopAll(){running=false; statusEl.innerText="Parado"; if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;} octx.clearRect(0,0,overlay.width,overlay.height);}
+function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
+
+// Listeners
+document.getElementById('startCam').onclick=startCam;
+document.getElementById('stopBtn').onclick=stopAll;
+document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
+document.getElementById('btnErrou').onclick=()=>registrar("erro");
+document.getElementById('btnEmpate').onclick=()=>registrar("empate");
 </script>
 </body>
 </html>
