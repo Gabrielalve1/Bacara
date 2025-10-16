@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Baccarat Reader – AI Pro</title>
+<title>Baccarat Reader Pro – Feedback Contínuo</title>
 <style>
-body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
-h1{color:#00ffc3}
-#controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;justify-content:center}
-button,input{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
-button{background:#00ffc3;color:#000;font-weight:bold}
-button.alt{background:#1a2426;color:#fff}
-#canvasWrap{position:relative;width:90%;max-width:920px}
-canvas,img{width:100%;border-radius:10px}
-#overlay{position:absolute;top:0;left:0;pointer-events:none}
-#panel{width:90%;max-width:920px;margin-top:10px;background:#0d171c;padding:12px;border-radius:10px}
-#results{display:flex;gap:8px;margin-top:8px;justify-content:center}
-#stats{margin-top:8px;font-size:15px;text-align:center;color:#00ffc3}
-#warning{margin-top:6px;color:#ffcc00;font-weight:700}
+body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px;}
+h1{color:#00ffc3;}
+#controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;justify-content:center;}
+button,input{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px;}
+button{background:#00ffc3;color:#000;font-weight:bold;}
+button.alt{background:#1a2426;color:#fff;}
+#canvasWrap{position:relative;width:90%;max-width:920px;}
+canvas,img{width:100%;border-radius:10px;}
+#overlay{position:absolute;top:0;left:0;pointer-events:none;}
+#panel{width:90%;max-width:920px;margin-top:10px;background:#0d171c;padding:12px;border-radius:10px;}
+#warning{color:#ffcc00;font-weight:700;margin-top:8px;}
+#results{display:flex;gap:8px;margin-top:8px;justify-content:center;}
+#stats{margin-top:8px;font-size:15px;text-align:center;color:#00ffc3;}
 </style>
 </head>
 <body>
-<h1>🔎 Baccarat Reader AI Pro</h1>
+<h1>🔎 Baccarat Reader Pro</h1>
 
 <div id="controls">
   <button id="startCam" class="alt">📷 Câmera</button>
@@ -36,9 +36,8 @@ canvas,img{width:100%;border-radius:10px}
 
 <div id="panel">
   <div><b>Status:</b> <span id="status">Parado</span></div>
-  <div><b>Recomendação:</b> <span id="pattern">—</span></div>
+  <div><b>Padrão:</b> <span id="pattern">—</span></div>
   <div><b>Confiança:</b> <span id="conf">0%</span></div>
-  <div id="warning">⚠️</div>
 
   <div id="results">
     <button id="btnAcertou" style="background:#00ff66">✅ Acertou</button>
@@ -47,6 +46,7 @@ canvas,img{width:100%;border-radius:10px}
   </div>
 
   <div id="stats">Histórico: 0 acertos / 0 erros / 0 empates (0%)</div>
+  <div id="warning"></div>
 </div>
 
 <script>
@@ -64,14 +64,16 @@ let video=document.createElement('video');
 video.autoplay=true;video.playsInline=true;
 let stream=null,running=false;
 
-let sequence=[],feedbackHistory=[];
-let predictLast=null;
 let acertos=0,erros=0,empates=0;
-
-// Pesos adaptativos iniciais
+let sequence=[]; // histórico Player/Banker/Tie
+let feedbackHistory=[];
 let weights={player:1,banker:1,tie:1};
+let predictLast=null;
 
-// Detecta cores
+// Canvas resize
+function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
+
+// Função de detecção de cor
 function colorRole(r,g,b){
   if(r>170&&g<80&&b<80) return "banker";
   if(b>150&&r<80&&g<100) return "player";
@@ -79,27 +81,28 @@ function colorRole(r,g,b){
   return null;
 }
 
-// Detecta blobs e clusters
+// Detecção de bolinhas
 function detect(frame,w,h){
   const data=frame.data,step=5;
   const pts=[];
   for(let y=0;y<h;y+=step){
     for(let x=0;x<w;x+=step){
       const i=(y*w+x)*4;
-      const role=colorRole(data[i],data[i+1],data[i+2]);
+      const r=data[i],g=data[i+1],b=data[i+2];
+      const role=colorRole(r,g,b);
       if(role) pts.push({x,y,role});
     }
   }
   const clusters=[],dist=10;
   pts.forEach(p=>{
     let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
-    if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;} 
+    if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;}
     else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
   });
   return clusters;
 }
 
-// Desenha overlay
+// Overlay visual
 function drawOverlay(blobs){
   octx.clearRect(0,0,overlay.width,overlay.height);
   blobs.forEach(b=>{
@@ -110,46 +113,67 @@ function drawOverlay(blobs){
   });
 }
 
-// Analisa e prevê com pesos adaptativos
+// Análise com pesos e padrão
 function analyze(blobs){
   const seq=blobs.map(b=>b.role);
-  if(seq.length===0){patternEl.innerText="—";confEl.innerText="0%"; warningEl.innerText="⚠️ Leitura fraca"; return {recommendation:"—",confidence:0};}
-
-  const counts={player:0,banker:0,tie:0};
-  seq.forEach(r=>counts[r]++);
-  // Ajuste por pesos
-  counts.player*=weights.player; counts.banker*=weights.banker; counts.tie*=weights.tie;
-
-  // Predição
-  let recommendation="player",maxVal=counts.player;
-  if(counts.banker>maxVal){recommendation="banker";maxVal=counts.banker;}
-  if(counts.tie>maxVal){recommendation="tie";maxVal=counts.tie;}
-  const confidence=Math.min(1, maxVal/seq.length);
-
-  // Interface
-  patternEl.innerText=recommendation;
-  confEl.innerText=Math.round(confidence*100)+"%";
-  warningEl.innerText=seq.length<5?"⚠️ Leitura fraca":"";
-
-  return {recommendation,confidence,explanation:"Padrão detectado + pesos adaptativos"};
+  if(seq.length===0){patternEl.innerText="—";confEl.innerText="0%";return {recommendation:"tie",confidence:0.5};}
+  // Atualiza histórico
+  sequence.push(...seq); if(sequence.length>50) sequence=sequence.slice(-50);
+  const s=seq.join("");
+  let name="Padrão neutro",conf=0.5;
+  if(/(player){3,}/.test(s)){name="Surf Player";conf=0.9*weights.player;}
+  else if(/(banker){3,}/.test(s)){name="Surf Banker";conf=0.9*weights.banker;}
+  else if(seq.every((x,i,a)=>i===0||x!==a[i-1])){name="Xadrez";conf=0.85;}
+  else if(seq.includes("tie")){name="Empates frequentes";conf=0.7*weights.tie;}
+  // Escolhe maior peso
+  const scores={player:weights.player,banker:weights.banker,tie:weights.tie};
+  const rec=Object.keys(scores).reduce((a,b)=>scores[a]>=scores[b]?a:b);
+  patternEl.innerText=name; confEl.innerText=Math.round(conf*100)+"%";
+  predictLast={recommendation:rec,confidence:conf};
+  return predictLast;
 }
 
-// Loop contínuo
-function runContinuousFrame(){
+// Fala recomendação
+function speak(txt){
+  if(!("speechSynthesis" in window))return;
+  const u=new SpeechSynthesisUtterance(txt);u.lang="pt-BR";speechSynthesis.cancel();speechSynthesis.speak(u);
+}
+
+// Loop principal
+function runFrame(){
   if(!running) return;
   ctx.drawImage(video,0,0,canvas.width,canvas.height);
   const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
   const blobs=detect(frame,canvas.width,canvas.height);
   drawOverlay(blobs);
-
-  if(blobs.length>0) sequence.push(...blobs.map(b=>b.role));
-  if(sequence.length>50) sequence=sequence.slice(-50);
-
-  predictLast=analyze(blobs);
-  requestAnimationFrame(runContinuousFrame);
+  analyze(blobs);
+  requestAnimationFrame(runFrame);
 }
 
-// Câmera traseira
+// Estatísticas
+function atualizarStats(){
+  const total=acertos+erros+empates;
+  const perc=total?Math.round((acertos/total)*100):0;
+  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
+}
+
+// Feedback adaptativo e recomendação imediata
+function registrar(tipo){
+  if(!predictLast) return;
+  feedbackHistory.push({tipo:tipo,recommendation:predictLast.recommendation});
+  if(tipo==="acerto") weights[predictLast.recommendation]+=0.2;
+  if(tipo==="erro") weights[predictLast.recommendation]*=0.8;
+  if(tipo==="empate") weights.tie+=0.1;
+  if(tipo==="acerto") acertos++;
+  if(tipo==="erro") erros++;
+  if(tipo==="empate") empates++;
+  atualizarStats();
+  // Recalcula imediatamente
+  const next=analyze([]); // recalcula com pesos
+  return next;
+}
+
+// Início e parada
 async function startCam(){
   try{
     stopAll();
@@ -157,40 +181,26 @@ async function startCam(){
     video.srcObject=stream;
     video.onloadedmetadata=()=>{
       resizeCanvas(video.videoWidth,video.videoHeight);
-      running=true;statusEl.innerText="Câmera Ativa (AI)";
-      runContinuousFrame();
+      running=true;statusEl.innerText="Câmera Ativa (Auto)";
+      runFrame();
     };
   }catch(e){alert(e);}
 }
 
-// Feedback adaptativo
-function registrar(tipo){
-  if(!predictLast) return;
-  feedbackHistory.push({tipo:tipo,recommendation:predictLast.recommendation});
-  // Atualiza pesos
-  if(tipo==="acerto") weights[predictLast.recommendation]+=0.2;
-  if(tipo==="erro") weights[predictLast.recommendation]*=0.8;
-  if(tipo==="empate") weights.tie+=0.1;
+function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}octx.clearRect(0,0,overlay.width,overlay.height);}
 
-  if(tipo==="acerto") acertos++;
-  if(tipo==="erro") erros++;
-  if(tipo==="empate") empates++;
-  atualizarStats();
-}
+// Botões
+document.getElementById('startCam').onclick=startCam;
+document.getElementById('stopBtn').onclick=stopAll;
+document.getElementById('btnAcertou').onclick=()=>{const n=registrar("acerto");console.log("Próxima:",n.recommendation,n.confidence);};
+document.getElementById('btnErrou').onclick=()=>{const n=registrar("erro");console.log("Próxima:",n.recommendation,n.confidence);};
+document.getElementById('btnEmpate').onclick=()=>{const n=registrar("empate");console.log("Próxima:",n.recommendation,n.confidence);};
 
-function atualizarStats(){
-  const total=acertos+erros+empates;
-  const perc=total?Math.round((acertos/total)*100):0;
-  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
-}
-
-// Envio de foto
+// Enviar imagem
 document.getElementById('sendImg').onclick=()=>{
-  const input=document.createElement('input');
-  input.type='file';input.accept='image/*';
+  const input=document.createElement('input'); input.type='file'; input.accept='image/*';
   input.onchange=e=>{
-    const file=e.target.files[0];
-    if(!file) return;
+    const file=e.target.files[0]; if(!file) return;
     const img=new Image();
     img.onload=()=>{
       resizeCanvas(img.width,img.height);
@@ -198,24 +208,13 @@ document.getElementById('sendImg').onclick=()=>{
       const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
       const blobs=detect(frame,canvas.width,canvas.height);
       drawOverlay(blobs);
-      predictLast=analyze(blobs);
-      statusEl.innerText="Imagem analisada";
+      const p=analyze(blobs);
+      statusEl.innerText="Imagem analisada"; speak(`Padrão ${p.recommendation}, confiança ${Math.round(p.confidence*100)}%.`);
     };
     img.src=URL.createObjectURL(file);
   };
   input.click();
 };
-
-// Stop e resize
-function stopAll(){running=false; statusEl.innerText="Parado"; if(stream){stream.getTracks().forEach(t=>t.stop()); stream=null;} octx.clearRect(0,0,overlay.width,overlay.height);}
-function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
-
-// Listeners
-document.getElementById('startCam').onclick=startCam;
-document.getElementById('stopBtn').onclick=stopAll;
-document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
-document.getElementById('btnErrou').onclick=()=>registrar("erro");
-document.getElementById('btnEmpate').onclick=()=>registrar("empate");
 </script>
 </body>
 </html>
