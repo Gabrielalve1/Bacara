@@ -5,105 +5,88 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>BacBo Pattern Reader — ProCode++ Omega (OCR + Analítica)</title>
-<link rel="stylesheet" href="">
 <style>
-  :root{--bg:#06111a;--card:#0d1b22;--accent:#00ffb3;--muted:#9fb3b3}
-  body{margin:0;background:var(--bg);color:#e6fbf5;font-family:Inter,Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px}
-  h1{margin:6px 0 10px;color:var(--accent)}
-  .layout{width:100%;max-width:1100px;display:grid;grid-template-columns:420px 1fr;gap:12px}
-  .card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
-  .controls > *{margin:6px 0;display:flex;gap:8px;align-items:center}
-  input[type=file]{color:transparent}
-  button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
-  .muted{color:var(--muted);font-size:13px}
-  textarea{width:100%;height:80px;background:#081216;border:1px solid #073036;color:#e6fbf5;padding:8px;border-radius:8px}
-  .hist-list{max-height:420px;overflow:auto;padding:6px;display:flex;flex-wrap:wrap;gap:6px}
-  .chip{background:#06282a;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.03);min-width:40px;text-align:center}
-  .recommend{font-size:18px;color:#001a12;background:var(--accent);padding:10px;border-radius:8px;font-weight:800}
-  pre{white-space:pre-wrap;color:#dffbf0}
-  small{color:var(--muted)}
-  .row{display:flex;gap:8px;align-items:center}
-  .keyval{display:flex;justify-content:space-between;gap:10px}
+:root{--bg:#06111a;--card:#0d1b22;--accent:#00ffb3;--muted:#9fb3b3}
+body{margin:0;background:var(--bg);color:#e6fbf5;font-family:Inter,Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px}
+h1{margin:6px 0 10px;color:var(--accent)}
+.layout{width:100%;max-width:1100px;display:grid;grid-template-columns:420px 1fr;gap:12px}
+.card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.controls > *{margin:6px 0;display:flex;gap:8px;align-items:center}
+input[type=file]{color:transparent}
+button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
+.muted{color:var(--muted);font-size:13px}
+textarea{width:100%;height:80px;background:#081216;border:1px solid #073036;color:#e6fbf5;padding:8px;border-radius:8px}
+.hist-list{max-height:420px;overflow:auto;padding:6px;display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:#06282a;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.03);min-width:40px;text-align:center}
+.recommend{font-size:18px;color:#001a12;background:var(--accent);padding:10px;border-radius:8px;font-weight:800}
+pre{white-space:pre-wrap;color:#dffbf0}
+small{color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center}
+.keyval{display:flex;justify-content:space-between;gap:10px}
 </style>
-<!-- Tesseract.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
-  <h1>🔎 BacBo Pattern Reader — OCR + Analítica</h1>
+<h1>🔎 BacBo Pattern Reader — OCR + Analítica</h1>
 
-  <div class="layout">
-    <!-- Left: upload / manual input / controls -->
-    <div class="card">
-      <div class="controls">
-        <div><small>Upload da foto do gráfico (boa resolução):</small></div>
-        <div>
-          <input id="fileInput" type="file" accept="image/*">
-          <button id="doOCR">Extrair Números (OCR)</button>
-        </div>
-        <div><small class="muted">Ou cole/cole a sequência manualmente (se preferir)</small></div>
-        <textarea id="manualInput" placeholder="ex: 9,10,8,11,9,10,7,8,11"></textarea>
-        <div class="row">
-          <input id="singleNum" type="number" min="3" max="18" placeholder="Número da rodada" style="width:140px;padding:8px;border-radius:6px;border:1px solid #073036;background:#081216;color:#e6fbf5">
-          <button id="addRound">➕ Adicionar rodada</button>
-          <button id="analyzeNow">🔁 Analisar Agora</button>
-        </div>
-        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-        <div class="row">
-          <button id="btnAcertou" style="background:#00c37a">✅ Acertou</button>
-          <button id="btnErrou" style="background:#ff4d6d">❌ Errou</button>
-          <button id="btnEmpate" style="background:#ffd166">⚖️ Empate</button>
-          <button id="resetAll" style="background:#33444a;color:#fff">♻️ Reset</button>
-        </div>
-        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-        <div><small class="muted">Status OCR / Mensagens:</small></div>
-        <pre id="log" style="height:90px;overflow:auto;background:#071618;border-radius:6px;padding:8px;font-size:13px"></pre>
+<div class="layout">
+  <div class="card">
+    <div class="controls">
+      <div><small>Upload da foto do gráfico (boa resolução):</small></div>
+      <div>
+        <input id="fileInput" type="file" accept="image/*">
+        <button id="doOCR">Extrair Números (OCR)</button>
       </div>
-    </div>
-
-    <!-- Right: Analysis / history / recommendation -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div class="keyval"><div><small class="muted">Tendência atual</small><div id="trend" style="font-weight:800;margin-top:6px">—</div></div>
-          <div style="margin-top:10px"><small class="muted">Próxima Recomendação</small><div id="recommendation" class="recommend" style="margin-top:6px">—</div></div></div>
-        <div style="min-width:220px;text-align:right">
-          <div><small class="muted">Confiança</small><div id="confidence" style="font-weight:800;margin-top:6px">—</div></div>
-          <div style="margin-top:10px"><small class="muted">Performance</small><div id="performance" style="font-weight:800;margin-top:6px">0 / 0 (—)</div></div>
-        </div>
+      <div><small class="muted">Ou cole a sequência manualmente (se preferir)</small></div>
+      <textarea id="manualInput" placeholder="ex: 9,10,8,11,9,10,7,8,11"></textarea>
+      <div class="row">
+        <input id="singleNum" type="number" min="3" max="18" placeholder="Número da rodada" style="width:140px;padding:8px;border-radius:6px;border:1px solid #073036;background:#081216;color:#e6fbf5">
+        <button id="addRound">➕ Adicionar rodada</button>
+        <button id="analyzeNow">🔁 Analisar Agora</button>
       </div>
-
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:10px 0">
-
-      <div style="display:flex;gap:12px">
-        <div style="flex:1">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div><small class="muted">Histórico (últimos)</small></div>
-            <div><small class="muted">Nível de sinal</small></div>
-          </div>
-          <div id="history" class="hist-list" style="margin-top:8px"></div>
-        </div>
-        <div style="width:360px">
-          <div><small class="muted">Explicação da recomendação</small></div>
-          <pre id="explanation" style="height:260px;overflow:auto;background:#071618;border-radius:6px;padding:8px"></pre>
-        </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
+      <div class="row">
+        <button id="btnAcertou" style="background:#00c37a">✅ Acertou</button>
+        <button id="btnErrou" style="background:#ff4d6d">❌ Errou</button>
+        <button id="btnEmpate" style="background:#ffd166">⚖️ Empate</button>
+        <button id="resetAll" style="background:#33444a;color:#fff">♻️ Reset</button>
       </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
+      <div><small class="muted">Status OCR / Mensagens:</small></div>
+      <pre id="log" style="height:90px;overflow:auto;background:#071618;border-radius:6px;padding:8px;font-size:13px"></pre>
     </div>
   </div>
 
-<script>
-/* =========================
-   BacBo Pattern Reader v1
-   - OCR via Tesseract.js
-   - Multi-algorithm analysis:
-     * frequency / expected distribution
-     * recency score (age)
-     * transition probabilities (Markov)
-     * n-gram repeat matching
-     * run/cluster detection
-   - Combines signals to produce recommendation + explanation
-   - Feedback adjusts weights (learning)
-   ========================= */
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div class="keyval"><div><small class="muted">Tendência atual</small><div id="trend" style="font-weight:800;margin-top:6px">—</div></div>
+        <div style="margin-top:10px"><small class="muted">Próxima Recomendação</small><div id="recommendation" class="recommend" style="margin-top:6px">—</div></div></div>
+      <div style="min-width:220px;text-align:right">
+        <div><small class="muted">Confiança</small><div id="confidence" style="font-weight:800;margin-top:6px">—</div></div>
+        <div style="margin-top:10px"><small class="muted">Performance</small><div id="performance" style="font-weight:800;margin-top:6px">0 / 0 (—)</div></div>
+      </div>
+    </div>
 
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:10px 0">
+
+    <div style="display:flex;gap:12px">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><small class="muted">Histórico (últimos)</small></div>
+          <div><small class="muted">Nível de sinal</small></div>
+        </div>
+        <div id="history" class="hist-list" style="margin-top:8px"></div>
+      </div>
+      <div style="width:360px">
+        <div><small class="muted">Explicação da recomendação</small></div>
+        <pre id="explanation" style="height:260px;overflow:auto;background:#071618;border-radius:6px;padding:8px"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
 const logEl = document.getElementById('log');
 const historyEl = document.getElementById('history');
 const recommendationEl = document.getElementById('recommendation');
@@ -112,805 +95,138 @@ const explanationEl = document.getElementById('explanation');
 const trendEl = document.getElementById('trend');
 const performanceEl = document.getElementById('performance');
 
-let sequence = []; // numeric history, older...newer
+let sequence = [];
 let totalAttempts = 0, totalHits = 0;
-let weights = {
-  freq: 1.0,        // frequency vs expected
-  recency: 1.0,     // recency/age of last occurrence
-  transition: 1.4,  // transition probability weight
-  ngram: 1.2,       // n-gram match weight
-  run: 1.0          // runs / streaks
-};
-
-// theoretical distribution for 3 dice sums (3..18) combination counts out of 216
+let weights = { freq:1.0, recency:1.0, transition:1.4, ngram:1.2, run:1.0 };
 const combCounts = {3:1,4:3,5:6,6:10,7:15,8:21,9:25,10:27,11:27,12:25,13:21,14:15,15:10,16:6,17:3,18:1};
 const totalComb = 216;
-function expectedFreq(n, windowSize){
-  return (combCounts[n] || 0) * (windowSize / totalComb);
-}
 
-function log(msg){ logEl.textContent += msg + "\\n"; logEl.scrollTop = logEl.scrollHeight; }
+function expectedFreq(n, windowSize){ return (combCounts[n]||0)*(windowSize/totalComb); }
+function log(msg){ logEl.textContent += msg+"\n"; logEl.scrollTop = logEl.scrollHeight; }
 
 // ---------- OCR ----------
-document.getElementById('doOCR').onclick = async () => {
+document.getElementById('doOCR').onclick = async ()=>{
   const file = document.getElementById('fileInput').files[0];
   if(!file){ alert('Escolha uma imagem primeiro'); return; }
-  log('OCR: iniciando (pode demorar alguns segundos)...');
+  log('OCR: iniciando...');
   try{
-    const { data: { text } } = await Tesseract.recognize(file, 'por', { logger: m => {
-      // optional progress
-    } });
-    log('OCR: texto extraído (bruto):');
-    log(text.slice(0,300) + (text.length>300? '...': ''));
-    // tenta extrair números com regex
-    const nums = Array.from(text.matchAll(/\\b([3-9]|1[0-8])\\b/g)).map(m=>parseInt(m[1]));
-    if(nums.length){
-      document.getElementById('manualInput').value = nums.join(', ');
-      log('OCR: possíveis números detectados: ' + nums.join(', '));
-      alert('Números extraídos. Verifique o campo e clique "Analisar Agora" ou "Adicionar rodada".');
-    } else {
-      log('OCR: não conseguiu identificar números confiáveis. Ajuste a imagem / contraste e tente novamente.');
-      alert('OCR não identificou números confiáveis. Tente cortar a imagem para mostrar só os números mais próximos.');
-    }
-  }catch(e){
-    console.error(e);
-    log('OCR: erro: ' + e.message);
-    alert('Erro no OCR: veja console');
-  }
+    const { data:{text} } = await Tesseract.recognize(file,'por');
+    log('OCR: texto extraído: '+text.slice(0,300)+(text.length>300?'...':''));
+    const nums = Array.from(text.matchAll(/\b([3-9]|1[0-8])\b/g)).map(m=>parseInt(m[1]));
+    if(nums.length){ document.getElementById('manualInput').value = nums.join(', '); log('Números detectados: '+nums.join(', ')); alert('Números extraídos!'); }
+    else{ log('OCR: nenhum número confiável'); alert('OCR não identificou números confiáveis.'); }
+  }catch(e){ console.error(e); log('OCR erro: '+e.message); alert('Erro no OCR, veja console'); }
 };
 
 // ---------- Utilities ----------
 function pushFromManual(){
   const text = document.getElementById('manualInput').value.trim();
   if(!text) return;
-  const arr = text.split(/[,;\\s]+/)
-    .map(s => parseInt(s))
-    .filter(n => !isNaN(n) && n>=3 && n<=18);
-  if(!arr.length){ alert('Nenhum número válido (3..18) encontrado no campo'); return; }
-  sequence = sequence.concat(arr);
-  if(sequence.length > 200) sequence = sequence.slice(-200);
+  const arr = text.split(/[,;\s]+/).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=3&&n<=18);
+  if(!arr.length){ alert('Nenhum número válido'); return; }
+  sequence = sequence.concat(arr).slice(-200);
   renderAll();
 }
 
-document.getElementById('analyzeNow').onclick = () => { pushFromManual(); analyzeAndRecommend(); };
-document.getElementById('addRound').onclick = () => {
+document.getElementById('analyzeNow').onclick = ()=>{ pushFromManual(); analyzeAndRecommend(); };
+document.getElementById('addRound').onclick = ()=>{
   const val = parseInt(document.getElementById('singleNum').value);
-  if(!val || val < 3 || val > 18){ alert('Insira número válido (3..18)'); return; }
-  sequence.push(val);
-  if(sequence.length > 200) sequence = sequence.slice(-200);
-  document.getElementById('singleNum').value = '';
-  renderAll();
-  analyzeAndRecommend();
+  if(!val || val<3 || val>18){ alert('Número inválido'); return; }
+  sequence.push(val); document.getElementById('singleNum').value=''; sequence = sequence.slice(-200);
+  renderAll(); analyzeAndRecommend();
 };
 
-// Quick add sequence from textarea
-document.getElementById('fileInput').onchange = () => {
-  // optional: auto-run OCR? only via button to avoid accidental run
-};
-
-// reset
-document.getElementById('resetAll').onclick = () => {
+document.getElementById('resetAll').onclick = ()=>{
   if(!confirm('Resetar histórico e aprendizado?')) return;
-  sequence = []; totalAttempts = 0; totalHits = 0;
-  weights = { freq:1.0, recency:1.0, transition:1.4, ngram:1.2, run:1.0 };
+  sequence=[]; totalAttempts=0; totalHits=0; weights={ freq:1.0, recency:1.0, transition:1.4, ngram:1.2, run:1.0 };
   renderAll(); analyzeAndRecommend();
 };
 
-// feedback
-document.getElementById('btnAcertou').onclick = () => { recordFeedback(true); };
-document.getElementById('btnErrou').onclick = () => { recordFeedback(false); };
-document.getElementById('btnEmpate').onclick = () => { recordTie(); };
-
-// ---------- Render ----------
-function renderAll(){
-  // history chips
-  historyEl.innerHTML = '';
-  const last = sequence.slice(-60);
-  last.forEach((n,i) => {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.textContent = n;
-    historyEl.appendChild(chip);
-  });
-  performanceEl.textContent = `${totalHits} / ${totalAttempts} (${totalAttempts? Math.round(totalHits/totalAttempts*100) + '%' : '—'})`;
-}
-
-// ---------- Analysis Building Blocks ----------
-
-// frequency count in window (last W)
-function freqCounts(windowSize=60){
-  const arr = sequence.slice(-windowSize);
-  const counts = {};
-  for(let n of arr) counts[n] = (counts[n]||0)+1;
-  return counts;
-}
-
-// recency: age (distance from end) of last occurrence; lower age => recent
-function recencyScore(candidate){
-  for(let i=sequence.length-1, age=0; i>=0 && age<200; i--, age++){
-    if(sequence[i] === candidate) return Math.max(0, 1 - age/60); // decays ~60
-  }
-  return 0; // never seen recently
-}
-
-// transition probabilities P(next | last)
-function transitionMatrix(order=1){
-  // simple first-order matrix counts
-  const mat = {};
-  for(let i=0;i<sequence.length-order;i++){
-    const key = sequence.slice(i,i+order).join(',');
-    const next = sequence[i+order];
-    if(!mat[key]) mat[key] = {};
-    mat[key][next] = (mat[key][next]||0) + 1;
-  }
-  return mat;
-}
-
-// n-gram repeat matching: find past positions where the last K pattern repeated and what came next
-function ngramNextScores(K=3){
-  const scores = {}; // candidate -> score
-  if(sequence.length < K+1) return scores;
-  const lastPat = sequence.slice(-K).join(',');
-  for(let i=0;i+K < sequence.length;i++){
-    const pat = sequence.slice(i, i+K).join(',');
-    if(pat === lastPat && sequence[i+K] !== undefined){
-      const next = sequence[i+K];
-      scores[next] = (scores[next]||0) + 1;
-    }
-  }
-  // normalize-ish
-  return scores;
-}
-
-// run/streak detection: recent runs of same number
-function runStrength(){
-  if(sequence.length < 2) return {num:null,len:0};
-  let len = 1, last = sequence[sequence.length-1];
-  for(let i=sequence.length-2;i>=0;i--){
-    if(sequence[i] === last) len++; else break;
-  }
-  return {num:last, len};
-}
-
-// combine signals into candidate scores (for all possible numbers 3..18)
-function rankCandidates(){
-  const window = Math.min(60, Math.max(10, Math.floor(sequence.length/2)));
-  const freq = freqCounts(window);
-  const trans = transitionMatrix(1);
-  const lastKey = sequence.slice(-1).join(',');
-  const transCounts = trans[lastKey] || {};
-  const ngram = ngramNextScores(3);
-  const candidateScores = {};
-  for(let cand=3;cand<=18;cand++){
-    // base frequency score: negative if overexposed (we want numbers that are underrepresented to revert), positive if underrepresented
-    const observed = freq[cand] || 0;
-    const expected = expectedFreq(cand, window);
-    const freqScore = (expected - observed) / (expected + 1); // positive -> underrepresented
-
-    // recency (favor numbers seen recently? we'll treat as supporting repetition)
-    const recScore = recencyScore(cand);
-
-    // transition probability
-    const tCount = transCounts[cand] || 0;
-    const transDen = Object.values(transCounts).reduce((a,b)=>a+b,0);
-    const transScore = transDen ? (tCount / transDen) : 0;
-
-    // ngram score
-    const ngScore = (ngram[cand] || 0) / Math.max(1, Object.values(ngram).reduce((a,b)=>a+b,0));
-
-    // run influence: if recent run exists for a number, consider moderation (tendencia de reversão)
-    const run = runStrength();
-    let runScore = 0;
-    if(run.num === cand){
-      // penalize long runs slightly (expect reversal)
-      runScore = - Math.min(0.8, run.len / 10);
-    }
-
-    // aggregate weighted score
-    const score = weights.freq * freqScore
-                + weights.recency * recScore
-                + weights.transition * transScore
-                + weights.ngram * ngScore
-                + weights.run * runScore;
-
-    candidateScores[cand] = score;
-  }
-  return candidateScores;
-}
-
-// Main analyze & recommend
-function analyzeAndRecommend(){
-  if(sequence.length === 0){
-    recommendationEl.textContent = '—';
-    confidenceEl.textContent = '—';
-    explanationEl.textContent = 'Nenhuma rodada registrada ainda.';
-    trendEl.textContent = '—';
-    return;
-  }
-
-  const candScores = rankCandidates();
-  // convert to sorted list
-  const entries = Object.entries(candScores).map(([k,v])=>[parseInt(k),v]).sort((a,b)=>b[1]-a[1]);
-
-  const top = entries.slice(0,3);
-  // map score range to confidence 0..100
-  const maxScore = entries[0][1];
-  const minScore = entries[entries.length-1][1];
-  const range = Math.max(1e-6, maxScore - minScore);
-
-  const confidencePercent = Math.min(99, Math.round( ( (maxScore - minScore) / (Math.abs(minScore) + Math.abs(maxScore) + 1e-6) ) * 100 ));
-
-  // Construct explanation
-  const window = Math.min(60, Math.max(10, Math.floor(sequence.length/2)));
-  const freq = freqCounts(window);
-  const lastSeq = sequence.slice(-10).join(', ');
-  let explanation = '';
-  explanation += `Últimas rodadas (até 10): ${lastSeq}\\n\\n`;
-  explanation += `Análise combinada (freq/recência/transição/ngram/run) usando janela W=${window}.\\n\\n`;
-  explanation += `Top candidatos:\\n`;
-  top.forEach((t,i)=>{
-    const n = t[0], s = t[1].toFixed(3);
-    explanation += `${i+1}. ${n} — score ${s} — ocorrências na janela: ${freq[n]||0}\\n`;
-  });
-  explanation += `\\nRacional técnico:\\n`;
-  explanation += `- freq: compara frequência observada vs. esperada pela distribuição de soma (3 dados).\\n`;
-  explanation += `- recency: número recente tem chance de repetir (ou sinal de sequência).\\n`;
-  explanation += `- transition: se o último número historicamente foi seguido por X, isso pesa.\\n`;
-  explanation += `- n-gram: se o padrão recente já ocorreu antes, usamos o próximo histórico desse padrão.\\n`;
-  explanation += `- run: penaliza runs muito longos (tendência à reversão).\\n\\n`;
-  explanation += `Pesos atuais: freq=${weights.freq}, recency=${weights.recency}, transition=${weights.transition}, ngram=${weights.ngram}, run=${weights.run}.\\n`;
-
-  // set UI
-  const topRec = top[0][0];
-  recommendationEl.textContent = topRec;
-  confidenceEl.textContent = `${confidencePercent}%`;
-  explanationEl.textContent = explanation;
-  trendEl.textContent = describeTrend();
-
-  // also render small signals next to history chips: highlight recent strong candidates
-  renderAll();
-  highlightTopCandidates(top.map(t=>t[0]));
-}
-
-// describe a simple trend: mean of last 10
-function describeTrend(){
-  const last10 = sequence.slice(-10);
-  if(last10.length < 4) return 'Neutra (poucos dados)';
-  const avg = last10.reduce((a,b)=>a+b,0)/last10.length;
-  if(avg > 11) return 'Tendência Alta';
-  if(avg < 9) return 'Tendência Baixa';
-  return 'Tendência Central/Neutra';
-}
-
-function highlightTopCandidates(arr){
-  // highlight chips
-  const chips = historyEl.querySelectorAll('.chip');
-  chips.forEach(ch => {
-    ch.style.outline = 'none';
-    const val = parseInt(ch.textContent);
-    if(arr.includes(val)) ch.style.boxShadow = '0 0 8px rgba(0,255,179,.12)';
-  });
-}
-
-// ---------- Feedback & learning ----------
-function recordFeedback(hit){
-  const rec = parseInt(recommendationEl.textContent);
-  if(!rec || isNaN(rec)){ alert('Sem recomendação atual para avaliar'); return; }
-  totalAttempts++;
-  if(hit){
-    totalHits++;
-    // reinforce weights slightly toward signals that favored this candidate
-    weights.freq *= 1.02;
-    weights.transition *= 1.03;
-    weights.recency *= 1.01;
-  } else {
-    // punish overfitting weights
-    weights.freq *= 0.97;
-    weights.transition *= 0.96;
-    weights.ngram *= 0.98;
-  }
-  // keep weights in reasonable bounds
-  for(let k in weights) weights[k] = Math.max(0.2, Math.min(3.0, weights[k]));
-  // push actual result to sequence? in real use you'd add the actual outcome separately
-  renderAll(); analyzeAndRecommend();
-}
-
-function recordTie(){
-  // tie handling: minor reinforcement for moderate signals
-  weights.freq *= 1.01;
-  renderAll(); analyzeAndRecommend();
-}
-
-// wrapper for feedback
-function recordFeedbackWrapper(hit){
-  recordFeedback(hit);
-  // update UI
-  performanceEl.textContent = `${totalHits} / ${totalAttempts} (${totalAttempts? Math.round(totalHits/totalAttempts*100) + '%' : '—'})`;
-}
-function recordFeedbackFromUI(isHit){
-  recordFeedbackWrapper(isHit);
-}
-
-// direct used by buttons
-function recordFeedbackButton(isHit){
-  recordFeedbackWrapper(isHit);
-}
-
-// provide named functions for buttons
-function recordHit(){ recordFeedbackWrapper(true); }
-function recordMiss(){ recordFeedbackWrapper(false); }
-
+// ---------- Feedback centralizado ----------
 function recordFeedbackVal(v){
-  if(v==='acerto' || v===true) recordFeedbackWrapper(true);
-  else if(v==='errou' || No código que você tava fazendo mais de erro na conexão se parou aki 
-
-
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BacBo Pattern Reader — ProCode++ Omega (OCR + Analítica)</title>
-<link rel="stylesheet" href="">
-<style>
-  :root{--bg:#06111a;--card:#0d1b22;--accent:#00ffb3;--muted:#9fb3b3}
-  body{margin:0;background:var(--bg);color:#e6fbf5;font-family:Inter,Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px}
-  h1{margin:6px 0 10px;color:var(--accent)}
-  .layout{width:100%;max-width:1100px;display:grid;grid-template-columns:420px 1fr;gap:12px}
-  .card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
-  .controls > *{margin:6px 0;display:flex;gap:8px;align-items:center}
-  input[type=file]{color:transparent}
-  button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
-  .muted{color:var(--muted);font-size:13px}
-  textarea{width:100%;height:80px;background:#081216;border:1px solid #073036;color:#e6fbf5;padding:8px;border-radius:8px}
-  .hist-list{max-height:420px;overflow:auto;padding:6px;display:flex;flex-wrap:wrap;gap:6px}
-  .chip{background:#06282a;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.03);min-width:40px;text-align:center}
-  .recommend{font-size:18px;color:#001a12;background:var(--accent);padding:10px;border-radius:8px;font-weight:800}
-  pre{white-space:pre-wrap;color:#dffbf0}
-  small{color:var(--muted)}
-  .row{display:flex;gap:8px;align-items:center}
-  .keyval{display:flex;justify-content:space-between;gap:10px}
-</style>
-<!-- Tesseract.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
-</head>
-<body>
-  <h1>🔎 BacBo Pattern Reader — OCR + Analítica</h1>
-
-  <div class="layout">
-    <!-- Left: upload / manual input / controls -->
-    <div class="card">
-      <div class="controls">
-        <div><small>Upload da foto do gráfico (boa resolução):</small></div>
-        <div>
-          <input id="fileInput" type="file" accept="image/*">
-          <button id="doOCR">Extrair Números (OCR)</button>
-        </div>
-        <div><small class="muted">Ou cole/cole a sequência manualmente (se preferir)</small></div>
-        <textarea id="manualInput" placeholder="ex: 9,10,8,11,9,10,7,8,11"></textarea>
-        <div class="row">
-          <input id="singleNum" type="number" min="3" max="18" placeholder="Número da rodada" style="width:140px;padding:8px;border-radius:6px;border:1px solid #073036;background:#081216;color:#e6fbf5">
-          <button id="addRound">➕ Adicionar rodada</button>
-          <button id="analyzeNow">🔁 Analisar Agora</button>
-        </div>
-        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-        <div class="row">
-          <button id="btnAcertou" style="background:#00c37a">✅ Acertou</button>
-          <button id="btnErrou" style="background:#ff4d6d">❌ Errou</button>
-          <button id="btnEmpate" style="background:#ffd166">⚖️ Empate</button>
-          <button id="resetAll" style="background:#33444a;color:#fff">♻️ Reset</button>
-        </div>
-        <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-        <div><small class="muted">Status OCR / Mensagens:</small></div>
-        <pre id="log" style="height:90px;overflow:auto;background:#071618;border-radius:6px;padding:8px;font-size:13px"></pre>
-      </div>
-    </div>
-
-    <!-- Right: Analysis / history / recommendation -->
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div class="keyval"><div><small class="muted">Tendência atual</small><div id="trend" style="font-weight:800;margin-top:6px">—</div></div>
-          <div style="margin-top:10px"><small class="muted">Próxima Recomendação</small><div id="recommendation" class="recommend" style="margin-top:6px">—</div></div></div>
-        <div style="min-width:220px;text-align:right">
-          <div><small class="muted">Confiança</small><div id="confidence" style="font-weight:800;margin-top:6px">—</div></div>
-          <div style="margin-top:10px"><small class="muted">Performance</small><div id="performance" style="font-weight:800;margin-top:6px">0 / 0 (—)</div></div>
-        </div>
-      </div>
-
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:10px 0">
-
-      <div style="display:flex;gap:12px">
-        <div style="flex:1">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div><small class="muted">Histórico (últimos)</small></div>
-            <div><small class="muted">Nível de sinal</small></div>
-          </div>
-          <div id="history" class="hist-list" style="margin-top:8px"></div>
-        </div>
-        <div style="width:360px">
-          <div><small class="muted">Explicação da recomendação</small></div>
-          <pre id="explanation" style="height:260px;overflow:auto;background:#071618;border-radius:6px;padding:8px"></pre>
-        </div>
-      </div>
-    </div>
-  </div>
-
-<script>
-/* =========================
-   BacBo Pattern Reader v1
-   - OCR via Tesseract.js
-   - Multi-algorithm analysis:
-     * frequency / expected distribution
-     * recency score (age)
-     * transition probabilities (Markov)
-     * n-gram repeat matching
-     * run/cluster detection
-   - Combines signals to produce recommendation + explanation
-   - Feedback adjusts weights (learning)
-   ========================= */
-
-const logEl = document.getElementById('log');
-const historyEl = document.getElementById('history');
-const recommendationEl = document.getElementById('recommendation');
-const confidenceEl = document.getElementById('confidence');
-const explanationEl = document.getElementById('explanation');
-const trendEl = document.getElementById('trend');
-const performanceEl = document.getElementById('performance');
-
-let sequence = []; // numeric history, older...newer
-let totalAttempts = 0, totalHits = 0;
-let weights = {
-  freq: 1.0,        // frequency vs expected
-  recency: 1.0,     // recency/age of last occurrence
-  transition: 1.4,  // transition probability weight
-  ngram: 1.2,       // n-gram match weight
-  run: 1.0          // runs / streaks
-};
-
-// theoretical distribution for 3 dice sums (3..18) combination counts out of 216
-const combCounts = {3:1,4:3,5:6,6:10,7:15,8:21,9:25,10:27,11:27,12:25,13:21,14:15,15:10,16:6,17:3,18:1};
-const totalComb = 216;
-function expectedFreq(n, windowSize){
-  return (combCounts[n] || 0) * (windowSize / totalComb);
-}
-
-function log(msg){ logEl.textContent += msg + "\\n"; logEl.scrollTop = logEl.scrollHeight; }
-
-// ---------- OCR ----------
-document.getElementById('doOCR').onclick = async () => {
-  const file = document.getElementById('fileInput').files[0];
-  if(!file){ alert('Escolha uma imagem primeiro'); return; }
-  log('OCR: iniciando (pode demorar alguns segundos)...');
-  try{
-    const { data: { text } } = await Tesseract.recognize(file, 'por', { logger: m => {
-      // optional progress
-    } });
-    log('OCR: texto extraído (bruto):');
-    log(text.slice(0,300) + (text.length>300? '...': ''));
-    // tenta extrair números com regex
-    const nums = Array.from(text.matchAll(/\\b([3-9]|1[0-8])\\b/g)).map(m=>parseInt(m[1]));
-    if(nums.length){
-      document.getElementById('manualInput').value = nums.join(', ');
-      log('OCR: possíveis números detectados: ' + nums.join(', '));
-      alert('Números extraídos. Verifique o campo e clique "Analisar Agora" ou "Adicionar rodada".');
-    } else {
-      log('OCR: não conseguiu identificar números confiáveis. Ajuste a imagem / contraste e tente novamente.');
-      alert('OCR não identificou números confiáveis. Tente cortar a imagem para mostrar só os números mais próximos.');
-    }
-  }catch(e){
-    console.error(e);
-    log('OCR: erro: ' + e.message);
-    alert('Erro no OCR: veja console');
-  }
-};
-
-// ---------- Utilities ----------
-function pushFromManual(){
-  const text = document.getElementById('manualInput').value.trim();
-  if(!text) return;
-  const arr = text.split(/[,;\\s]+/)
-    .map(s => parseInt(s))
-    .filter(n => !isNaN(n) && n>=3 && n<=18);
-  if(!arr.length){ alert('Nenhum número válido (3..18) encontrado no campo'); return; }
-  sequence = sequence.concat(arr);
-  if(sequence.length > 200) sequence = sequence.slice(-200);
-  renderAll();
-}
-
-document.getElementById('analyzeNow').onclick = () => { pushFromManual(); analyzeAndRecommend(); };
-document.getElementById('addRound').onclick = () => {
-  const val = parseInt(document.getElementById('singleNum').value);
-  if(!val || val < 3 || val > 18){ alert('Insira número válido (3..18)'); return; }
-  sequence.push(val);
-  if(sequence.length > 200) sequence = sequence.slice(-200);
-  document.getElementById('singleNum').value = '';
-  renderAll();
-  analyzeAndRecommend();
-};
-
-// Quick add sequence from textarea
-document.getElementById('fileInput').onchange = () => {
-  // optional: auto-run OCR? only via button to avoid accidental run
-};
-
-// reset
-document.getElementById('resetAll').onclick = () => {
-  if(!confirm('Resetar histórico e aprendizado?')) return;
-  sequence = []; totalAttempts = 0; totalHits = 0;
-  weights = { freq:1.0, recency:1.0, transition:1.4, ngram:1.2, run:1.0 };
-  renderAll(); analyzeAndRecommend();
-};
-
-// feedback
-document.getElementById('btnAcertou').onclick = () => { recordFeedback(true); };
-document.getElementById('btnErrou').onclick = () => { recordFeedback(false); };
-document.getElementById('btnEmpate').onclick = () => { recordTie(); };
-
-// ---------- Render ----------
-function renderAll(){
-  // history chips
-  historyEl.innerHTML = '';
-  const last = sequence.slice(-60);
-  last.forEach((n,i) => {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.textContent = n;
-    historyEl.appendChild(chip);
-  });
-  performanceEl.textContent = `${totalHits} / ${totalAttempts} (${totalAttempts? Math.round(totalHits/totalAttempts*100) + '%' : '—'})`;
-}
-
-// ---------- Analysis Building Blocks ----------
-
-// frequency count in window (last W)
-function freqCounts(windowSize=60){
-  const arr = sequence.slice(-windowSize);
-  const counts = {};
-  for(let n of arr) counts[n] = (counts[n]||0)+1;
-  return counts;
-}
-
-// recency: age (distance from end) of last occurrence; lower age => recent
-function recencyScore(candidate){
-  for(let i=sequence.length-1, age=0; i>=0 && age<200; i--, age++){
-    if(sequence[i] === candidate) return Math.max(0, 1 - age/60); // decays ~60
-  }
-  return 0; // never seen recently
-}
-
-// transition probabilities P(next | last)
-function transitionMatrix(order=1){
-  // simple first-order matrix counts
-  const mat = {};
-  for(let i=0;i<sequence.length-order;i++){
-    const key = sequence.slice(i,i+order).join(',');
-    const next = sequence[i+order];
-    if(!mat[key]) mat[key] = {};
-    mat[key][next] = (mat[key][next]||0) + 1;
-  }
-  return mat;
-}
-
-// n-gram repeat matching: find past positions where the last K pattern repeated and what came next
-function ngramNextScores(K=3){
-  const scores = {}; // candidate -> score
-  if(sequence.length < K+1) return scores;
-  const lastPat = sequence.slice(-K).join(',');
-  for(let i=0;i+K < sequence.length;i++){
-    const pat = sequence.slice(i, i+K).join(',');
-    if(pat === lastPat && sequence[i+K] !== undefined){
-      const next = sequence[i+K];
-      scores[next] = (scores[next]||0) + 1;
-    }
-  }
-  // normalize-ish
-  return scores;
-}
-
-// run/streak detection: recent runs of same number
-function runStrength(){
-  if(sequence.length < 2) return {num:null,len:0};
-  let len = 1, last = sequence[sequence.length-1];
-  for(let i=sequence.length-2;i>=0;i--){
-    if(sequence[i] === last) len++; else break;
-  }
-  return {num:last, len};
-}
-
-// combine signals into candidate scores (for all possible numbers 3..18)
-function rankCandidates(){
-  const window = Math.min(60, Math.max(10, Math.floor(sequence.length/2)));
-  const freq = freqCounts(window);
-  const trans = transitionMatrix(1);
-  const lastKey = sequence.slice(-1).join(',');
-  const transCounts = trans[lastKey] || {};
-  const ngram = ngramNextScores(3);
-  const candidateScores = {};
-  for(let cand=3;cand<=18;cand++){
-    // base frequency score: negative if overexposed (we want numbers that are underrepresented to revert), positive if underrepresented
-    const observed = freq[cand] || 0;
-    const expected = expectedFreq(cand, window);
-    const freqScore = (expected - observed) / (expected + 1); // positive -> underrepresented
-
-    // recency (favor numbers seen recently? we'll treat as supporting repetition)
-    const recScore = recencyScore(cand);
-
-    // transition probability
-    const tCount = transCounts[cand] || 0;
-    const transDen = Object.values(transCounts).reduce((a,b)=>a+b,0);
-    const transScore = transDen ? (tCount / transDen) : 0;
-
-    // ngram score
-    const ngScore = (ngram[cand] || 0) / Math.max(1, Object.values(ngram).reduce((a,b)=>a+b,0));
-
-    // run influence: if recent run exists for a number, consider moderation (tendencia de reversão)
-    const run = runStrength();
-    let runScore = 0;
-    if(run.num === cand){
-      // penalize long runs slightly (expect reversal)
-      runScore = - Math.min(0.8, run.len / 10);
-    }
-
-    // aggregate weighted score
-    const score = weights.freq * freqScore
-                + weights.recency * recScore
-                + weights.transition * transScore
-                + weights.ngram * ngScore
-                + weights.run * runScore;
-
-    candidateScores[cand] = score;
-  }
-  return candidateScores;
-}
-
-// Main analyze & recommend
-function analyzeAndRecommend(){
-  if(sequence.length === 0){
-    recommendationEl.textContent = '—';
-    confidenceEl.textContent = '—';
-    explanationEl.textContent = 'Nenhuma rodada registrada ainda.';
-    trendEl.textContent = '—';
-    return;
-  }
-
-  const candScores = rankCandidates();
-  // convert to sorted list
-  const entries = Object.entries(candScores).map(([k,v])=>[parseInt(k),v]).sort((a,b)=>b[1]-a[1]);
-
-  const top = entries.slice(0,3);
-  // map score range to confidence 0..100
-  const maxScore = entries[0][1];
-  const minScore = entries[entries.length-1][1];
-  const range = Math.max(1e-6, maxScore - minScore);
-
-  const confidencePercent = Math.min(99, Math.round( ( (maxScore - minScore) / (Math.abs(minScore) + Math.abs(maxScore) + 1e-6) ) * 100 ));
-
-  // Construct explanation
-  const window = Math.min(60, Math.max(10, Math.floor(sequence.length/2)));
-  const freq = freqCounts(window);
-  const lastSeq = sequence.slice(-10).join(', ');
-  let explanation = '';
-  explanation += `Últimas rodadas (até 10): ${lastSeq}\\n\\n`;
-  explanation += `Análise combinada (freq/recência/transição/ngram/run) usando janela W=${window}.\\n\\n`;
-  explanation += `Top candidatos:\\n`;
-  top.forEach((t,i)=>{
-    const n = t[0], s = t[1].toFixed(3);
-    explanation += `${i+1}. ${n} — score ${s} — ocorrências na janela: ${freq[n]||0}\\n`;
-  });
-  explanation += `\\nRacional técnico:\\n`;
-  explanation += `- freq: compara frequência observada vs. esperada pela distribuição de soma (3 dados).\\n`;
-  explanation += `- recency: número recente tem chance de repetir (ou sinal de sequência).\\n`;
-  explanation += `- transition: se o último número historicamente foi seguido por X, isso pesa.\\n`;
-  explanation += `- n-gram: se o padrão recente já ocorreu antes, usamos o próximo histórico desse padrão.\\n`;
-  explanation += `- run: penaliza runs muito longos (tendência à reversão).\\n\\n`;
-  explanation += `Pesos atuais: freq=${weights.freq}, recency=${weights.recency}, transition=${weights.transition}, ngram=${weights.ngram}, run=${weights.run}.\\n`;
-
-  // set UI
-  const topRec = top[0][0];
-  recommendationEl.textContent = topRec;
-  confidenceEl.textContent = `${confidencePercent}%`;
-  explanationEl.textContent = explanation;
-  trendEl.textContent = describeTrend();
-
-  // also render small signals next to history chips: highlight recent strong candidates
-  renderAll();
-  highlightTopCandidates(top.map(t=>t[0]));
-}
-
-// describe a simple trend: mean of last 10
-function describeTrend(){
-  const last10 = sequence.slice(-10);
-  if(last10.length < 4) return 'Neutra (poucos dados)';
-  const avg = last10.reduce((a,b)=>a+b,0)/last10.length;
-  if(avg > 11) return 'Tendência Alta';
-  if(avg < 9) return 'Tendência Baixa';
-  return 'Tendência Central/Neutra';
-}
-
-function highlightTopCandidates(arr){
-  // highlight chips
-  const chips = historyEl.querySelectorAll('.chip');
-  chips.forEach(ch => {
-    ch.style.outline = 'none';
-    const val = parseInt(ch.textContent);
-    if(arr.includes(val)) ch.style.boxShadow = '0 0 8px rgba(0,255,179,.12)';
-  });
-}
-
-// ---------- Feedback & learning ----------
-function recordFeedback(hit){
-  const rec = parseInt(recommendationEl.textContent);
-  if(!rec || isNaN(rec)){ alert('Sem recomendação atual para avaliar'); return; }
-  totalAttempts++;
-  if(hit){
-    totalHits++;
-    // reinforce weights slightly toward signals that favored this candidate
-    weights.freq *= 1.02;
-    weights.transition *= 1.03;
-    weights.recency *= 1.01;
-  } else {
-    // punish overfitting weights
-    weights.freq *= 0.97;
-    weights.transition *= 0.96;
-    weights.ngram *= 0.98;
-  }
-  // keep weights in reasonable bounds
-  for(let k in weights) weights[k] = Math.max(0.2, Math.min(3.0, weights[k]));
-  // push actual result to sequence? in real use you'd add the actual outcome separately
-  renderAll(); analyzeAndRecommend();
-}
-
-function recordTie(){
-  // tie handling: minor reinforcement for moderate signals
-  weights.freq *= 1.01;
-  renderAll(); analyzeAndRecommend();
-}
-
-// wrapper for feedback
-function recordFeedbackWrapper(hit){
-  recordFeedback(hit);
-  // update UI
-  performanceEl.textContent = `${totalHits} / ${totalAttempts} (${totalAttempts? Math.round(totalHits/totalAttempts*100) + '%' : '—'})`;
-}
-function recordFeedbackFromUI(isHit){
-  recordFeedbackWrapper(isHit);
-}
-
-// direct used by buttons
-function recordFeedbackButton(isHit){
-  recordFeedbackWrapper(isHit);
-}
-
-// provide named functions for buttons
-function recordHit(){ recordFeedbackWrapper(true); }
-function recordMiss(){ recordFeedbackWrapper(false); }
-
-function recordFeedbackVal(v){
-  if(v==='acerto' || v===true) recordFeedbackWrapper(true);
-  else if(v==='errou' ||
-Assim ? 
- function recordFeedbackVal(v){
-  if(v==='acerto' || v===true) recordFeedbackWrapper(true);
-  else if(v==='errou' || v===false) recordFeedbackWrapper(false);
+  if(v==='acerto' || v===true) recordHit();
+  else if(v==='errou' || v===false) recordMiss();
   else if(v==='empate') recordTie();
   else console.warn('Feedback inválido:', v);
 }
 
-// ---------- Optional: auto-analyze after feedback ----------
-function feedbackAndNext(hit){
-  recordFeedbackVal(hit);
-  analyzeAndRecommend(); // já sugere próximo automaticamente
+function feedbackAndNext(v){
+  recordFeedbackVal(v);
+  analyzeAndRecommend();
 }
 
-// Link buttons to this for “ultra rápido”
-document.getElementById('btnAcertou').onclick = () => feedbackAndNext('acerto');
-document.getElementById('btnErrou').onclick = () => feedbackAndNext('errou');
-document.getElementById('btnEmpate').onclick = () => feedbackAndNext('empate');
+document.getElementById('btnAcertou').onclick = ()=>feedbackAndNext('acerto');
+document.getElementById('btnErrou').onclick = ()=>feedbackAndNext('errou');
+document.getElementById('btnEmpate').onclick = ()=>feedbackAndNext('empate');
 
-// Initial render
+function recordHit(){ totalHits++; totalAttempts++; adjustWeights(1); renderAll(); }
+function recordMiss(){ totalAttempts++; adjustWeights(-1); renderAll(); }
+function recordTie(){ adjustWeights(0.2); renderAll(); }
+function adjustWeights(factor){ for(let k in weights) weights[k] *= (1+0.03*factor); }
+
+// ---------- Render ----------
+function renderAll(){
+  // histórico
+  historyEl.innerHTML = '';
+  sequence.slice(-50).forEach(n=>{
+    const chip = document.createElement('div'); chip.className='chip'; chip.textContent=n; historyEl.appendChild(chip);
+  });
+  // performance
+  const perc = totalAttempts?Math.round(100*totalHits/totalAttempts):0;
+  performanceEl.textContent = `${totalHits} / ${totalAttempts} (${perc}%)`;
+}
+
+// ---------- Análise e Recomendação ----------
+function analyzeAndRecommend(){
+  if(!sequence.length){ recommendationEl.textContent='—'; confidenceEl.textContent='—'; explanationEl.textContent='Sequência vazia'; trendEl.textContent='—'; return; }
+
+  // 1. Frequência simples
+  const freqMap = {}; sequence.forEach(n=>freqMap[n]=(freqMap[n]||0)+1);
+
+  // 2. Últimos 5 rodadas (recência)
+  const last5 = sequence.slice(-5); const recMap={}; last5.forEach(n=>recMap[n]=(recMap[n]||0)+1);
+
+  // 3. Transição (último para próximo)
+  const last = sequence[sequence.length-1]; const transMap={};
+  sequence.slice(0,-1).forEach((v,i)=>{ if(sequence[i+1]) transMap[sequence[i+1]]=(transMap[sequence[i+1]]||0)+1; });
+
+  // 4. Ngram simples
+  const ngramMap={}; for(let i=0;i<sequence.length-2;i++){ const key=sequence.slice(i,i+2).join(','); const next=sequence[i+2]; ngramMap[next]=(ngramMap[next]||0)+1; }
+
+  // 5. Run (diferença +1, -1)
+  const runMap={}; sequence.slice(1).forEach((v,i)=>{ const diff=v-sequence[i]; runMap[sequence[i]+diff]=(runMap[sequence[i]+diff]||0)+1; });
+
+  // Combina tudo com pesos
+  const scores={};
+  for(let n=3;n<=18;n++){
+    scores[n] = (freqMap[n]||0)*weights.freq
+              + (recMap[n]||0)*weights.recency
+              + (transMap[n]||0)*weights.transition
+              + (ngramMap[n]||0)*weights.ngram
+              + (runMap[n]||0)*weights.run;
+  }
+
+  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const top = sorted[0][0]; const topScore=sorted[0][1];
+  const totalScore = sorted.reduce((s,[n,v])=>s+v,0);
+  const conf = totalScore?Math.round(100*topScore/totalScore):0;
+
+  recommendationEl.textContent=top;
+  confidenceEl.textContent=conf+'%';
+  explanationEl.textContent=
+    'Frequência: '+JSON.stringify(freqMap)+'\n'+
+    'Recência(últimos 5): '+JSON.stringify(recMap)+'\n'+
+    'Transição: '+JSON.stringify(transMap)+'\n'+
+    'Ngram: '+JSON.stringify(ngramMap)+'\n'+
+    'Run: '+JSON.stringify(runMap)+'\n'+
+    'Pesos: '+JSON.stringify(weights);
+  
+  // Tendência
+  const trend = (last<top)?'Subindo':'Estável/Baixo';
+  trendEl.textContent = trend;
+}
+
 renderAll();
-analyzeAndRecommend();
 </script>
 </body>
-</html>         
+</html>    
