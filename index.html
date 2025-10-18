@@ -1,232 +1,51 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BacBo Pattern Reader — ProCode++ Omega (OCR + Analítica)</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BacBo Analyzer</title>
 <style>
-:root{--bg:#06111a;--card:#0d1b22;--accent:#00ffb3;--muted:#9fb3b3}
-body{margin:0;background:var(--bg);color:#e6fbf5;font-family:Inter,Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px}
-h1{margin:6px 0 10px;color:var(--accent)}
-.layout{width:100%;max-width:1100px;display:grid;grid-template-columns:420px 1fr;gap:12px}
-.card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
-.controls > *{margin:6px 0;display:flex;gap:8px;align-items:center}
-input[type=file]{color:transparent}
-button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
-.muted{color:var(--muted);font-size:13px}
-textarea{width:100%;height:80px;background:#081216;border:1px solid #073036;color:#e6fbf5;padding:8px;border-radius:8px}
-.hist-list{max-height:420px;overflow:auto;padding:6px;display:flex;flex-wrap:wrap;gap:6px}
-.chip{background:#06282a;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.03);min-width:40px;text-align:center}
-.recommend{font-size:18px;color:#001a12;background:var(--accent);padding:10px;border-radius:8px;font-weight:800}
-pre{white-space:pre-wrap;color:#dffbf0}
-small{color:var(--muted)}
-.row{display:flex;gap:8px;align-items:center}
-.keyval{display:flex;justify-content:space-between;gap:10px}
+body{background:#06111a;color:#e6fbf5;font-family:sans-serif;padding:20px}
+h1{color:#00ffb3} 
+textarea{width:100%;height:80px;background:#081216;color:#e6fbf5;border-radius:6px;padding:8px;border:none}
+button{padding:8px 12px;margin-top:6px;background:#00ffb3;border:none;color:#000;font-weight:700;border-radius:6px;cursor:pointer}
+#recommendation{margin-top:12px;font-size:20px;font-weight:800}
+#history{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{padding:6px 8px;background:#06282a;border-radius:6px}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
-<h1>🔎 BacBo Pattern Reader — OCR + Analítica</h1>
-
-<div class="layout">
-  <div class="card">
-    <div class="controls">
-      <div><small>Upload da foto do gráfico (boa resolução):</small></div>
-      <div>
-        <input id="fileInput" type="file" accept="image/*">
-        <button id="doOCR">Extrair Números (OCR)</button>
-      </div>
-      <div><small class="muted">Ou cole a sequência manualmente (se preferir)</small></div>
-      <textarea id="manualInput" placeholder="ex: 9,10,8,11,9,10,7,8,11"></textarea>
-      <div class="row">
-        <input id="singleNum" type="number" min="3" max="18" placeholder="Número da rodada" style="width:140px;padding:8px;border-radius:6px;border:1px solid #073036;background:#081216;color:#e6fbf5">
-        <button id="addRound">➕ Adicionar rodada</button>
-        <button id="analyzeNow">🔁 Analisar Agora</button>
-      </div>
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-      <div class="row">
-        <button id="btnAcertou" style="background:#00c37a">✅ Acertou</button>
-        <button id="btnErrou" style="background:#ff4d6d">❌ Errou</button>
-        <button id="btnEmpate" style="background:#ffd166">⚖️ Empate</button>
-        <button id="resetAll" style="background:#33444a;color:#fff">♻️ Reset</button>
-      </div>
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-      <div><small class="muted">Status OCR / Mensagens:</small></div>
-      <pre id="log" style="height:90px;overflow:auto;background:#071618;border-radius:6px;padding:8px;font-size:13px"></pre>
-    </div>
-  </div>
-
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div class="keyval"><div><small class="muted">Tendência atual</small><div id="trend" style="font-weight:800;margin-top:6px">—</div></div>
-        <div style="margin-top:10px"><small class="muted">Próxima Recomendação</small><div id="recommendation" class="recommend" style="margin-top:6px">—</div></div></div>
-      <div style="min-width:220px;text-align:right">
-        <div><small class="muted">Confiança</small><div id="confidence" style="font-weight:800;margin-top:6px">—</div></div>
-        <div style="margin-top:10px"><small class="muted">Performance</small><div id="performance" style="font-weight:800;margin-top:6px">0 / 0 (—)</div></div>
-      </div>
-    </div>
-
-    <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:10px 0">
-
-    <div style="display:flex;gap:12px">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><small class="muted">Histórico (últimos)</small></div>
-          <div><small class="muted">Nível de sinal</small></div>
-        </div>
-        <div id="history" class="hist-list" style="margin-top:8px"></div>
-      </div>
-      <div style="width:360px">
-        <div><small class="muted">Explicação da recomendação</small></div>
-        <pre id="explanation" style="height:260px;overflow:auto;background:#071618;border-radius:6px;padding:8px"></pre>
-      </div>
-    </div>
-  </div>
-</div>
+<h1>🔮 BacBo Analyzer</h1>
+<textarea id="manualInput" placeholder="Ex: 9,10,8,11,9,10,7,8,11"></textarea>
+<br>
+<button onclick="analyzeSequence()">Analisar Sequência</button>
+<div id="recommendation">—</div>
+<div id="history"></div>
 
 <script>
-const logEl = document.getElementById('log');
-const historyEl = document.getElementById('history');
-const recommendationEl = document.getElementById('recommendation');
-const confidenceEl = document.getElementById('confidence');
-const explanationEl = document.getElementById('explanation');
-const trendEl = document.getElementById('trend');
-const performanceEl = document.getElementById('performance');
-
 let sequence = [];
-let totalAttempts = 0, totalHits = 0;
-let weights = { freq:1.0, recency:1.0, transition:1.4, ngram:1.2, run:1.0 };
-const combCounts = {3:1,4:3,5:6,6:10,7:15,8:21,9:25,10:27,11:27,12:25,13:21,14:15,15:10,16:6,17:3,18:1};
-const totalComb = 216;
-
-function expectedFreq(n, windowSize){ return (combCounts[n]||0)*(windowSize/totalComb); }
-function log(msg){ logEl.textContent += msg+"\n"; logEl.scrollTop = logEl.scrollHeight; }
-
-// ---------- OCR ----------
-document.getElementById('doOCR').onclick = async ()=>{
-  const file = document.getElementById('fileInput').files[0];
-  if(!file){ alert('Escolha uma imagem primeiro'); return; }
-  log('OCR: iniciando...');
-  try{
-    const { data:{text} } = await Tesseract.recognize(file,'por');
-    log('OCR: texto extraído: '+text.slice(0,300)+(text.length>300?'...':''));
-    const nums = Array.from(text.matchAll(/\b([3-9]|1[0-8])\b/g)).map(m=>parseInt(m[1]));
-    if(nums.length){ document.getElementById('manualInput').value = nums.join(', '); log('Números detectados: '+nums.join(', ')); alert('Números extraídos!'); }
-    else{ log('OCR: nenhum número confiável'); alert('OCR não identificou números confiáveis.'); }
-  }catch(e){ console.error(e); log('OCR erro: '+e.message); alert('Erro no OCR, veja console'); }
-};
-
-// ---------- Utilities ----------
-function pushFromManual(){
-  const text = document.getElementById('manualInput').value.trim();
-  if(!text) return;
-  const arr = text.split(/[,;\s]+/).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=3&&n<=18);
-  if(!arr.length){ alert('Nenhum número válido'); return; }
-  sequence = sequence.concat(arr).slice(-200);
-  renderAll();
-}
-
-document.getElementById('analyzeNow').onclick = ()=>{ pushFromManual(); analyzeAndRecommend(); };
-document.getElementById('addRound').onclick = ()=>{
-  const val = parseInt(document.getElementById('singleNum').value);
-  if(!val || val<3 || val>18){ alert('Número inválido'); return; }
-  sequence.push(val); document.getElementById('singleNum').value=''; sequence = sequence.slice(-200);
-  renderAll(); analyzeAndRecommend();
-};
-
-document.getElementById('resetAll').onclick = ()=>{
-  if(!confirm('Resetar histórico e aprendizado?')) return;
-  sequence=[]; totalAttempts=0; totalHits=0; weights={ freq:1.0, recency:1.0, transition:1.4, ngram:1.2, run:1.0 };
-  renderAll(); analyzeAndRecommend();
-};
-
-// ---------- Feedback centralizado ----------
-function recordFeedbackVal(v){
-  if(v==='acerto' || v===true) recordHit();
-  else if(v==='errou' || v===false) recordMiss();
-  else if(v==='empate') recordTie();
-  else console.warn('Feedback inválido:', v);
-}
-
-function feedbackAndNext(v){
-  recordFeedbackVal(v);
-  analyzeAndRecommend();
-}
-
-document.getElementById('btnAcertou').onclick = ()=>feedbackAndNext('acerto');
-document.getElementById('btnErrou').onclick = ()=>feedbackAndNext('errou');
-document.getElementById('btnEmpate').onclick = ()=>feedbackAndNext('empate');
-
-function recordHit(){ totalHits++; totalAttempts++; adjustWeights(1); renderAll(); }
-function recordMiss(){ totalAttempts++; adjustWeights(-1); renderAll(); }
-function recordTie(){ adjustWeights(0.2); renderAll(); }
-function adjustWeights(factor){ for(let k in weights) weights[k] *= (1+0.03*factor); }
-
-// ---------- Render ----------
-function renderAll(){
-  // histórico
-  historyEl.innerHTML = '';
-  sequence.slice(-50).forEach(n=>{
-    const chip = document.createElement('div'); chip.className='chip'; chip.textContent=n; historyEl.appendChild(chip);
+function renderHistory(seq){
+  const container = document.getElementById('history');
+  container.innerHTML = '';
+  seq.forEach(n=>{
+    const div = document.createElement('div');
+    div.className='chip'; div.textContent=n;
+    container.appendChild(div);
   });
-  // performance
-  const perc = totalAttempts?Math.round(100*totalHits/totalAttempts):0;
-  performanceEl.textContent = `${totalHits} / ${totalAttempts} (${perc}%)`;
 }
-
-// ---------- Análise e Recomendação ----------
-function analyzeAndRecommend(){
-  if(!sequence.length){ recommendationEl.textContent='—'; confidenceEl.textContent='—'; explanationEl.textContent='Sequência vazia'; trendEl.textContent='—'; return; }
-
-  // 1. Frequência simples
-  const freqMap = {}; sequence.forEach(n=>freqMap[n]=(freqMap[n]||0)+1);
-
-  // 2. Últimos 5 rodadas (recência)
-  const last5 = sequence.slice(-5); const recMap={}; last5.forEach(n=>recMap[n]=(recMap[n]||0)+1);
-
-  // 3. Transição (último para próximo)
-  const last = sequence[sequence.length-1]; const transMap={};
-  sequence.slice(0,-1).forEach((v,i)=>{ if(sequence[i+1]) transMap[sequence[i+1]]=(transMap[sequence[i+1]]||0)+1; });
-
-  // 4. Ngram simples
-  const ngramMap={}; for(let i=0;i<sequence.length-2;i++){ const key=sequence.slice(i,i+2).join(','); const next=sequence[i+2]; ngramMap[next]=(ngramMap[next]||0)+1; }
-
-  // 5. Run (diferença +1, -1)
-  const runMap={}; sequence.slice(1).forEach((v,i)=>{ const diff=v-sequence[i]; runMap[sequence[i]+diff]=(runMap[sequence[i]+diff]||0)+1; });
-
-  // Combina tudo com pesos
-  const scores={};
-  for(let n=3;n<=18;n++){
-    scores[n] = (freqMap[n]||0)*weights.freq
-              + (recMap[n]||0)*weights.recency
-              + (transMap[n]||0)*weights.transition
-              + (ngramMap[n]||0)*weights.ngram
-              + (runMap[n]||0)*weights.run;
-  }
-
-  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  const top = sorted[0][0]; const topScore=sorted[0][1];
-  const totalScore = sorted.reduce((s,[n,v])=>s+v,0);
-  const conf = totalScore?Math.round(100*topScore/totalScore):0;
-
-  recommendationEl.textContent=top;
-  confidenceEl.textContent=conf+'%';
-  explanationEl.textContent=
-    'Frequência: '+JSON.stringify(freqMap)+'\n'+
-    'Recência(últimos 5): '+JSON.stringify(recMap)+'\n'+
-    'Transição: '+JSON.stringify(transMap)+'\n'+
-    'Ngram: '+JSON.stringify(ngramMap)+'\n'+
-    'Run: '+JSON.stringify(runMap)+'\n'+
-    'Pesos: '+JSON.stringify(weights);
-  
-  // Tendência
-  const trend = (last<top)?'Subindo':'Estável/Baixo';
-  trendEl.textContent = trend;
+async function analyzeSequence(){
+  const input = document.getElementById('manualInput').value;
+  sequence = input.split(/[,;\s]+/).map(Number).filter(n=>n>=3&&n<=18);
+  renderHistory(sequence);
+  const res = await fetch('/api/analyze', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({sequence})
+  });
+  const data = await res.json();
+  document.getElementById('recommendation').textContent = 
+    `Top 3: ${data.recommendation.join(' / ')} (Confiança: ${data.confidence.join('% / ')}%)`;
 }
-
-renderAll();
 </script>
 </body>
-</html>    
+</html>
