@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Baccarat ProCode++ Omega Consultor Ultra</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Baccarat ProCode++ Omega Consultor</title>
 <style>
 body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
 #controls,#results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
@@ -17,7 +17,7 @@ button.alt{background:#1a2426;color:#fff}
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
 </head>
 <body>
-<h1>🔮 Baccarat ProCode++ Omega Consultor Ultra</h1>
+<h1>🔮 Baccarat ProCode++ Omega Consultor</h1>
 
 <div id="controls">
   <button id="startCam" class="alt">📷 Câmera</button>
@@ -62,21 +62,21 @@ let feedbackHistory=[], sequenceHistory=[];
 const classMap={"player":0,"banker":1,"tie":2};
 const invClassMap={0:"player",1:"banker",2:"tie"};
 
-// CNN + LSTM minimal, expandível
+// CNN + LSTM simples para demonstração
 const model=tf.sequential();
-model.add(tf.layers.conv2d({inputShape:[64,64,3],filters:32,kernelSize:3,activation:'relu'}));
+model.add(tf.layers.conv2d({inputShape:[64,64,3],filters:16,kernelSize:3,activation:'relu'}));
 model.add(tf.layers.maxPooling2d({poolSize:2}));
 model.add(tf.layers.flatten());
 model.add(tf.layers.repeatVector({n:5}));
-model.add(tf.layers.lstm({units:64}));
+model.add(tf.layers.lstm({units:32}));
 model.add(tf.layers.dense({units:3,activation:'softmax'}));
 model.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
 
-// --- Funções Auxiliares ---
+// Funções auxiliares
 function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
 function preprocess(frame){return tf.tidy(()=>tf.browser.fromPixels(frame).resizeBilinear([64,64]).toFloat().div(255).expandDims(0));}
 
-// Detecção de cor + números simples (placeholder, futuro OCR)
+// Detecção simples por cor
 function colorRole(r,g,b){
   if(r>170&&g<80&&b<80)return"banker";
   if(b>150&&r<80&&g<100)return"player";
@@ -109,12 +109,12 @@ function drawOverlay(blobs){
   });
 }
 
-// Predição contínua com explicação
+// Predição com explicação detalhada
 async function predictNextWithExplanation(frame, seqHistory){
   const cnnInput = preprocess(frame);
   const cnnFeatures = model.predict(cnnInput);
   
-  const seqTensor = tf.tensor([seqHistory.slice(-10).map(r=>{
+  const seqTensor = tf.tensor([seqHistory.slice(-5).map(r=>{
     const arr=[0,0,0]; if(r) arr[classMap[r]]=1; return arr;
   })]);
   
@@ -126,7 +126,7 @@ async function predictNextWithExplanation(frame, seqHistory){
   const confidence = arr[idx];
 
   let explanation = "";
-  const lastSequence = seqHistory.slice(-10).join(", ");
+  const lastSequence = seqHistory.slice(-5).join(", ");
   explanation += `- Últimas jogadas: [${lastSequence}]\n`;
   explanation += `- CNN detectou padrões visuais no gráfico.\n`;
   explanation += `- LSTM avaliou tendência histórica e reforçou a escolha.\n`;
@@ -137,11 +137,11 @@ async function predictNextWithExplanation(frame, seqHistory){
   return {recommendation, confidence, explanation};
 }
 
-// Treinamento incremental rápido
+// Treinamento incremental
 async function train(frame,label){
   const input=preprocess(frame);
   const output=tf.tensor([[label===0?1:0,label===1?1:0,label===2?1:0]]);
-  await model.fit(input,output,{epochs:2});
+  await model.fit(input,output,{epochs:3});
   input.dispose(); output.dispose();
 }
 
@@ -152,8 +152,8 @@ function atualizarStats(){
   statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
-// Registro de feedback + recomendação instantânea
-async function registrar(tipo){
+// Registro de feedback e recomendação contínua com explicação
+async function registrarComExplicacao(tipo){
   const rec = nextRecEl.innerText;
   feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
 
@@ -162,18 +162,17 @@ async function registrar(tipo){
   if(tipo==="empate") empates++;
 
   sequenceHistory.push(rec);
-  if(sequenceHistory.length>50) sequenceHistory.shift(); // janela deslizante
   await train(canvas,classMap[rec]);
   atualizarStats();
 
-  const next = await predictNextWithExplanation(canvas,sequenceHistory);
+  const next = await predictNextWithExplanation(canvas, sequenceHistory);
   nextRecEl.innerText = next.recommendation;
   confEl.innerText = Math.round(next.confidence*100) + "%";
   patternEl.innerText = "Padrão detectado";
   explanationEl.innerText = next.explanation;
 }
 
-// Loop principal em tempo real
+// Loop principal
 async function runFrame(){
   if(!running) return;
   ctx.drawImage(video,0,0,canvas.width,canvas.height);
@@ -205,9 +204,9 @@ function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.g
 // Eventos
 document.getElementById('startCam').onclick=startCam;
 document.getElementById('stopBtn').onclick=stopAll;
-document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
-document.getElementById('btnErrou').onclick=()=>registrar("erro");
-document.getElementById('btnEmpate').onclick=()=>registrar("empate");
+document.getElementById('btnAcertou').onclick=()=>registrarComExplicacao("acerto");
+document.getElementById('btnErrou').onclick=()=>registrarComExplicacao("erro");
+document.getElementById('btnEmpate').onclick=()=>registrarComExplicacao("empate");
 
 // Upload de imagem
 document.getElementById('sendImg').onclick=()=>{
@@ -219,6 +218,7 @@ document.getElementById('sendImg').onclick=()=>{
       resizeCanvas(img.width,img.height);
       ctx.drawImage(img,0,0,canvas.width,canvas.height);
       drawOverlay(detect(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height));
+
       const res=await predictNextWithExplanation(canvas,sequenceHistory);
       nextRecEl.innerText=res.recommendation;
       confEl.innerText=Math.round(res.confidence*100)+"%";
