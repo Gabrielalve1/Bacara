@@ -1,206 +1,223 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BacBo Deep Analyzer — Avançado</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BacBo Analyzer — ProCode++ Omega (Modo Contínuo)</title>
 <style>
-:root{--bg:#06111a;--card:#0d1b22;--accent:#00ffb3;--muted:#9fb3b3}
-body{margin:0;background:var(--bg);color:#e6fbf5;font-family:Inter,Segoe UI,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:14px}
-h1{margin:6px 0 10px;color:var(--accent)}
-.layout{width:100%;max-width:1100px;display:grid;grid-template-columns:420px 1fr;gap:12px}
-.card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
-.controls > *{margin:6px 0;display:flex;gap:8px;align-items:center}
-input[type=file]{color:transparent}
-button{background:var(--accent);border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700}
-.muted{color:var(--muted);font-size:13px}
-textarea{width:100%;height:80px;background:#081216;border:1px solid #073036;color:#e6fbf5;padding:8px;border-radius:8px}
-.hist-list{max-height:420px;overflow:auto;padding:6px;display:flex;flex-wrap:wrap;gap:6px}
-.chip{background:#06282a;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.03);min-width:40px;text-align:center}
-.recommend{font-size:18px;color:#fff;padding:10px;border-radius:8px;font-weight:800;text-align:center}
-pre{white-space:pre-wrap;color:#dffbf0}
-small{color:var(--muted)}
-.row{display:flex;gap:8px;align-items:center}
-.keyval{display:flex;justify-content:space-between;gap:10px}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0a1217;
+  color: #e8f9f3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+}
+h1 { color: #00ffc3; margin-bottom: 10px; }
+#panel {
+  background: #0e1a20;
+  border-radius: 10px;
+  padding: 12px;
+  width: 90%;
+  max-width: 900px;
+}
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button.primary { background: #00ffc3; color: #000; font-weight: bold; }
+button.alt { background: #18252b; color: #fff; }
+canvas { border-radius: 10px; margin-top: 8px; max-width: 90%; }
+#results { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+#stats { margin-top: 10px; font-size: 14px; color: #8ff; }
+#log { font-size: 13px; color: #ccc; margin-top: 10px; max-height: 150px; overflow-y: auto; background:#091216; padding:5px; border-radius:8px; }
+#intervalSet { margin-top: 10px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
-<h1>🔮 BacBo Deep Analyzer — Ultra Avançado</h1>
+<h1>🔮 BacBo Analyzer — ProCode++ Omega (Modo Contínuo)</h1>
 
-<div class="layout">
-  <div class="card">
-    <div class="controls">
-      <div><small>Upload da foto do gráfico:</small></div>
-      <div>
-        <input id="fileInput" type="file" accept="image/*">
-        <button id="doOCR">Extrair Números + Cores</button>
-      </div>
-      <div><small class="muted">Ou cole a sequência manualmente:</small></div>
-      <textarea id="manualInput" placeholder="ex: 9,10,8,11,9,10,7,8,11"></textarea>
-      <div class="row">
-        <button id="analyzeNow">🔁 Analisar Sequência</button>
-        <button id="resetAll" style="background:#33444a;color:#fff">♻️ Resetar Histórico</button>
-      </div>
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:8px 0">
-      <div><small class="muted">Status / Logs:</small></div>
-      <pre id="log" style="height:120px;overflow:auto;background:#071618;border-radius:6px;padding:8px;font-size:13px"></pre>
-    </div>
+<div>
+  <button id="sendImg" class="alt">📸 Enviar Gráfico</button>
+  <button id="toggleAuto" class="primary">▶️ Iniciar Auto Análise</button>
+  <button id="stopBtn" class="alt">⛔ Parar</button>
+</div>
+
+<canvas id="canvas"></canvas>
+<canvas id="overlay"></canvas>
+
+<div id="panel">
+  <div><b>Status:</b> <span id="status">Aguardando imagem...</span></div>
+  <div><b>Padrão:</b> <span id="pattern">—</span></div>
+  <div><b>Confiança:</b> <span id="conf">0%</span></div>
+  <div><b>Recomendação:</b> <span id="nextRec">—</span></div>
+
+  <div id="intervalSet">
+    <label>Intervalo (segundos): </label>
+    <input type="number" id="intervalInput" value="5" min="2" max="60" style="width:60px;text-align:center;">
   </div>
 
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div class="keyval"><div><small class="muted">Próxima Recomendação (3 Estratégias)</small>
-          <div id="recommendation" class="recommend" style="margin-top:6px;background:#00ffb3">—</div>
-        </div></div>
-      </div>
-      <div style="min-width:120px;text-align:right">
-        <div><small class="muted">Confiança</small><div id="confidence" style="font-weight:800;margin-top:6px">—</div></div>
-      </div>
-    </div>
-    <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:10px 0">
-    <div><small class="muted">Histórico Completo</small></div>
-    <div id="history" class="hist-list" style="margin-top:8px"></div>
-    <hr style="border:none;border-top:1px solid rgba(255,255,255,.03);margin:10px 0">
-    <div><small class="muted">Explicação Matemática Profunda</small></div>
-    <pre id="explanation" style="height:280px;overflow:auto;background:#071618;border-radius:6px;padding:8px"></pre>
+  <div id="results">
+    <button id="btnAcertou" style="background:#00ff66">✅ Acertou</button>
+    <button id="btnErrou" style="background:#ff3366">❌ Errou</button>
+    <button id="btnEmpate" style="background:#ffcc00">⚖️ Empatou</button>
   </div>
+
+  <div id="stats">Histórico: 0 acertos / 0 erros / 0 empates (0%)</div>
+  <div id="log"></div>
 </div>
 
 <script>
-const logEl = document.getElementById('log');
-const historyEl = document.getElementById('history');
-const recommendationEl = document.getElementById('recommendation');
-const confidenceEl = document.getElementById('confidence');
-const explanationEl = document.getElementById('explanation');
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const overlay=document.getElementById('overlay');
+const octx=overlay.getContext('2d');
+const statusEl=document.getElementById('status');
+const patternEl=document.getElementById('pattern');
+const confEl=document.getElementById('conf');
+const nextRecEl=document.getElementById('nextRec');
+const statsEl=document.getElementById('stats');
+const logEl=document.getElementById('log');
+const intervalInput=document.getElementById('intervalInput');
 
-let sequence = [];
-let colors = [];
-let weights = { freq:1.2, recency:1.5, transition:1.7, ngram:1.3, run:1.1 };
+let acertos=0,erros=0,empates=0;
+let weights={player:1,banker:1,tie:1};
+let lastRecommendation="—";
+let autoRunning=false,autoTimer=null;
 
-// ---------- LOG ----------
-function log(msg){ logEl.textContent += msg+"\n"; logEl.scrollTop = logEl.scrollHeight; }
+function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
 
-// ---------- OCR ----------
-document.getElementById('doOCR').onclick = async ()=>{
-  const file = document.getElementById('fileInput').files[0];
-  if(!file){ alert('Escolha uma imagem'); return; }
-  log('OCR: iniciando...');
-  try{
-    const { data:{text} } = await Tesseract.recognize(file,'por');
-    log('OCR: texto extraído: '+text.slice(0,300)+(text.length>300?'...':''));
-    const nums = Array.from(text.matchAll(/\b([3-9]|1[0-8])\b/g)).map(m=>parseInt(m[1]));
-    if(nums.length){ sequence = nums; renderAll(); alert('OCR: números extraídos!'); }
-    else{ log('OCR: nenhum número confiável'); alert('Erro OCR'); }
-    // cores podem ser adicionadas futuramente via canvas pixel analysis
-  }catch(e){ log('OCR erro: '+e.message); alert('Erro OCR'); }
-};
-
-// ---------- Manual Input ----------
-document.getElementById('analyzeNow').onclick = ()=>{
-  const text = document.getElementById('manualInput').value.trim();
-  if(text){
-    const arr = text.split(/[,;\s]+/).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=3&&n<=18);
-    if(!arr.length){ alert('Nenhum número válido'); return; }
-    sequence = arr;
-  }
-  if(!sequence.length){ alert('Sequência vazia'); return; }
-  renderAll();
-  deepAnalyze();
-};
-
-// ---------- Reset ----------
-document.getElementById('resetAll').onclick = ()=>{
-  if(!confirm('Resetar histórico completo?')) return;
-  sequence=[]; colors=[]; renderAll(); recommendationEl.textContent='—'; confidenceEl.textContent='—'; explanationEl.textContent='';
-};
-
-// ---------- Render ----------
-function renderAll(){
-  historyEl.innerHTML='';
-  sequence.forEach((n,i)=>{
-    const chip=document.createElement('div');
-    chip.className='chip';
-    chip.textContent=n + (colors[i]?' ('+colors[i]+')':'');
-    historyEl.appendChild(chip);
-  });
+function colorRole(r,g,b){
+  if(r>170&&g<90&&b<90)return"banker"; // vermelho
+  if(b>150&&r<100&&g<120)return"player"; // azul
+  if(r>180&&g>180&&b<100)return"tie"; // amarelo
+  return null;
 }
 
-// ---------- Deep Analysis ----------
-function deepAnalyze(){
-  const nmin=3,nmax=18;
-  const freqMap={}, recMap={}, transMap={}, ngramMap={}, runMap={};
-
-  // Frequência
-  sequence.forEach(n=> freqMap[n]=(freqMap[n]||0)+1);
-
-  // Recência últimos 5
-  sequence.slice(-5).forEach(n=> recMap[n]=(recMap[n]||0)+1);
-
-  // Transições
-  sequence.slice(0,-1).forEach((v,i)=>{
-    const next=sequence[i+1];
-    transMap[next]=(transMap[next]||0)+1;
-  });
-
-  // N-grams (3 e 4)
-  for(let size=3; size<=4; size++){
-    for(let i=0;i<=sequence.length-size;i++){
-      const key = sequence.slice(i,i+size).join(',');
-      ngramMap[key]=(ngramMap[key]||0)+1;
+function detect(frame,w,h){
+  const data=frame.data,points=[],step=6;
+  for(let y=0;y<h;y+=step){
+    for(let x=0;x<w;x+=step){
+      const i=(y*w+x)*4;
+      const role=colorRole(data[i],data[i+1],data[i+2]);
+      if(role)points.push({x,y,role});
     }
   }
-
-  // Runs / diferenças consecutivas
-  sequence.slice(1).forEach((v,i)=>{ const diff=v-sequence[i]; runMap[sequence[i]+diff]=(runMap[sequence[i]+diff]||0)+1; });
-
-  // Scores combinados
-  const scores={};
-  for(let n=nmin;n<=nmax;n++){
-    scores[n] = (freqMap[n]||0)*weights.freq
-              + (recMap[n]||0)*weights.recency
-              + (transMap[n]||0)*weights.transition
-              + Object.keys(ngramMap).filter(k=>k.endsWith(n)).length*weights.ngram
-              + (runMap[n]||0)*weights.run;
-  }
-
-  // Softmax para confiança
-  const expScores = Object.values(scores).map(v=>Math.exp(v));
-  const sumExp = expScores.reduce((a,b)=>a+b,0);
-  const probs = {};
-  Object.keys(scores).forEach((k,i)=> probs[k]=Math.round(100*expScores[i]/sumExp));
-
-  // Recomendação top 3 estratégias
-  const sorted = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
-  const top = sorted.slice(0,3).map(([n,s])=>n);
-  recommendationEl.textContent = top.join(' / ');
-  confidenceEl.textContent = top.map(n=>probs[n]+'%').join(' / ');
-
-  // Cor da recomendação principal
-  const confMain = probs[top[0]]||0;
-  if(confMain>70) recommendationEl.style.background='#00c37a';
-  else if(confMain>40) recommendationEl.style.background='#ffd700';
-  else recommendationEl.style.background='#ff4d6d';
-
-  // Explicação detalhada
-  explanationEl.textContent=
-    '✅ Frequência: '+JSON.stringify(freqMap)+'\n'+
-    '⏱ Recência (últimos 5): '+JSON.stringify(recMap)+'\n'+
-    '🔀 Transições: '+JSON.stringify(transMap)+'\n'+
-    '🔢 N-grams: '+JSON.stringify(ngramMap)+'\n'+
-    '📈 Runs: '+JSON.stringify(runMap)+'\n'+
-    '🔧 Pesos: '+JSON.stringify(weights)+'\n'+
-    '💡 Estratégia combinada: frequência + recência + transições + runs + n-grams\n'+
-    '⚡ Softmax probabilístico para confiança real';
+  const clusters=[];
+  const dist=10;
+  points.forEach(p=>{
+    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
+    if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;}
+    else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
+  });
+  return clusters;
 }
 
-// ---------- Feedback adaptativo ----------
-function registerFeedback(isHit){
-  const factor=isHit?1.05:0.95;
-  Object.keys(weights).forEach(k=> weights[k]*=factor);
-  deepAnalyze();
+function analyze(blobs){
+  const seq=blobs.map(b=>b.role);
+  if(seq.length===0)return{name:"Sem padrão visível",conf:0};
+  const s=seq.join("-");
+  if(/(player-){3,}/.test(s))return{name:"Domínio Player",conf:0.9};
+  if(/(banker-){3,}/.test(s))return{name:"Domínio Banker",conf:0.9};
+  if(seq.every((x,i,a)=>i===0||x!==a[i-1]))return{name:"Alternância",conf:0.85};
+  if(seq.includes("tie"))return{name:"Empates frequentes",conf:0.7};
+  return{name:"Padrão neutro",conf:0.55};
 }
+
+function predictNext(){
+  const entries=Object.entries(weights);
+  const rec=entries.reduce((a,b)=>a[1]>b[1]?a:b)[0];
+  return rec;
+}
+
+function updateStats(){
+  const total=acertos+erros+empates;
+  const perc=total?Math.round(acertos/total*100):0;
+  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
+}
+
+function registrar(tipo){
+  if(tipo==="acerto"){acertos++;weights[lastRecommendation]++;}
+  if(tipo==="erro"){erros++;weights[lastRecommendation]=Math.max(1,weights[lastRecommendation]-1);}
+  if(tipo==="empate"){empates++;weights["tie"]++;}
+  updateStats();
+  analyzeCurrentImage(); // reanalisar e recomendar
+}
+
+function drawOverlay(blobs){
+  octx.clearRect(0,0,overlay.width,overlay.height);
+  blobs.forEach(b=>{
+    octx.beginPath();
+    octx.arc(b.x,b.y,8,0,Math.PI*2);
+    octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
+    octx.lineWidth=2;
+    octx.stroke();
+  });
+}
+
+function log(msg){const t=new Date().toLocaleTimeString();logEl.innerHTML=`[${t}] ${msg}<br>`+logEl.innerHTML;}
+
+function analyzeCurrentImage(){
+  if(!canvas.width)return;
+  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const blobs=detect(frame,canvas.width,canvas.height);
+  drawOverlay(blobs);
+  const p=analyze(blobs);
+  patternEl.innerText=p.name;
+  confEl.innerText=Math.round(p.conf*100)+"%";
+  const rec=predictNext();
+  nextRecEl.innerText=rec==="player"?"🔵 Player":rec==="banker"?"🔴 Banker":"🟡 Empate";
+  lastRecommendation=rec;
+  log(`Padrão: ${p.name} | Recomendação: ${lastRecommendation}`);
+  statusEl.innerText="Analisando imagem...";
+}
+
+function startAutoAnalysis(){
+  if(autoRunning)return;
+  const interval=Number(intervalInput.value)*1000;
+  autoTimer=setInterval(()=>{analyzeCurrentImage();},interval);
+  autoRunning=true;
+  statusEl.innerText=`Análise contínua ativa (${interval/1000}s)`;
+  log("Análise contínua iniciada.");
+}
+
+function stopAutoAnalysis(){
+  if(autoTimer){clearInterval(autoTimer);}
+  autoRunning=false;
+  statusEl.innerText="Parado";
+  log("Análise contínua parada.");
+}
+
+// --- Eventos ---
+document.getElementById('sendImg').onclick=()=>{
+  const input=document.createElement('input');
+  input.type='file';
+  input.accept='image/*';
+  input.onchange=e=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    const img=new Image();
+    img.onload=()=>{
+      resizeCanvas(img.width,img.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      analyzeCurrentImage();
+    };
+    img.src=URL.createObjectURL(file);
+  };
+  input.click();
+};
+
+document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
+document.getElementById('btnErrou').onclick=()=>registrar("erro");
+document.getElementById('btnEmpate').onclick=()=>registrar("empate");
+document.getElementById('toggleAuto').onclick=()=>autoRunning?stopAutoAnalysis():startAutoAnalysis();
+document.getElementById('stopBtn').onclick=stopAutoAnalysis;
 </script>
 </body>
 </html>
