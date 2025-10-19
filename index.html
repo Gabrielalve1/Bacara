@@ -1,223 +1,278 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BacBo Analyzer — ProCode++ Omega (Modo Contínuo)</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>🧠 BacBo Deep Analyzer — ProCode++ Omega</title>
+
+<!-- Estilo -->
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0a1217;
-  color: #e8f9f3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px;
-}
-h1 { color: #00ffc3; margin-bottom: 10px; }
-#panel {
-  background: #0e1a20;
-  border-radius: 10px;
-  padding: 12px;
-  width: 90%;
-  max-width: 900px;
-}
-button {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin: 4px;
-  cursor: pointer;
-  font-size: 14px;
-}
-button.primary { background: #00ffc3; color: #000; font-weight: bold; }
-button.alt { background: #18252b; color: #fff; }
-canvas { border-radius: 10px; margin-top: 8px; max-width: 90%; }
-#results { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-#stats { margin-top: 10px; font-size: 14px; color: #8ff; }
-#log { font-size: 13px; color: #ccc; margin-top: 10px; max-height: 150px; overflow-y: auto; background:#091216; padding:5px; border-radius:8px; }
-#intervalSet { margin-top: 10px; }
+  :root {
+    --bg: #07121f;
+    --card: #0b1a2a;
+    --accent: #00ffc3;
+    --blue: #0a84ff;
+    --red: #ff3b30;
+    --yellow: #ffd60a;
+    --muted: #a0b0b9;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: #e6f9ff;
+    font-family: "Inter", Arial, sans-serif;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 { color: var(--accent); margin-bottom: 10px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 15px;
+    width: 100%;
+    max-width: 1200px;
+  }
+  .card {
+    background: var(--card);
+    padding: 14px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,.3);
+  }
+  button {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .muted { color: var(--muted); font-size: 13px; }
+  textarea {
+    width: 100%;
+    height: 80px;
+    border-radius: 8px;
+    background: #0d1b2b;
+    color: #e6f9ff;
+    border: 1px solid #093a4b;
+    padding: 8px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chip {
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    min-width: 34px;
+  }
+  .blue { background: var(--blue); }
+  .red { background: var(--red); }
+  .yellow { background: var(--yellow); color: #222; }
+  .recommend {
+    font-size: 18px;
+    background: var(--accent);
+    color: #001a12;
+    font-weight: 800;
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+  pre {
+    background: #0a1828;
+    border-radius: 8px;
+    padding: 10px;
+    overflow: auto;
+    font-size: 13px;
+  }
 </style>
+
+<!-- OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
-<h1>🔮 BacBo Analyzer — ProCode++ Omega (Modo Contínuo)</h1>
+  <h1>🔎 BacBo Deep Analyzer — ProCode++ Omega</h1>
 
-<div>
-  <button id="sendImg" class="alt">📸 Enviar Gráfico</button>
-  <button id="toggleAuto" class="primary">▶️ Iniciar Auto Análise</button>
-  <button id="stopBtn" class="alt">⛔ Parar</button>
-</div>
+  <div class="grid">
+    <!-- Painel de entrada -->
+    <div class="card">
+      <div class="muted">Upload da imagem do gráfico (BacBo):</div>
+      <input id="fileInput" type="file" accept="image/*"/>
+      <button id="runOCR">📸 Ler imagem e extrair dados</button>
+      <hr>
+      <div class="muted">Ou cole manualmente (número,cor)</div>
+      <textarea id="manualInput" placeholder="ex: 9-azul,10-vermelho,11-amarelo"></textarea>
+      <button id="analyzeBtn">🔁 Analisar Agora</button>
+      <hr>
+      <div class="row">
+        <button id="btnAcerto" style="background:#00c37a;">✅ Acertou</button>
+        <button id="btnErro" style="background:#ff4d6d;">❌ Errou</button>
+        <button id="btnEmpate" style="background:#ffd166;">⚖️ Empate</button>
+        <button id="btnReset" style="background:#33444a;color:#fff;">♻️ Reset</button>
+      </div>
+      <hr>
+      <div class="muted">Log:</div>
+      <pre id="log"></pre>
+    </div>
 
-<canvas id="canvas"></canvas>
-<canvas id="overlay"></canvas>
-
-<div id="panel">
-  <div><b>Status:</b> <span id="status">Aguardando imagem...</span></div>
-  <div><b>Padrão:</b> <span id="pattern">—</span></div>
-  <div><b>Confiança:</b> <span id="conf">0%</span></div>
-  <div><b>Recomendação:</b> <span id="nextRec">—</span></div>
-
-  <div id="intervalSet">
-    <label>Intervalo (segundos): </label>
-    <input type="number" id="intervalInput" value="5" min="2" max="60" style="width:60px;text-align:center;">
+    <!-- Painel de análise -->
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div class="muted">Tendência Atual:</div>
+          <div id="trend" style="font-weight:800;margin-top:6px;">—</div>
+        </div>
+        <div>
+          <div class="muted">Próxima Recomendação:</div>
+          <div id="recommendation" class="recommend">—</div>
+        </div>
+      </div>
+      <hr>
+      <div class="muted">Histórico recente:</div>
+      <div id="history" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+      <hr>
+      <div class="muted">Explicação:</div>
+      <pre id="explanation"></pre>
+    </div>
   </div>
-
-  <div id="results">
-    <button id="btnAcertou" style="background:#00ff66">✅ Acertou</button>
-    <button id="btnErrou" style="background:#ff3366">❌ Errou</button>
-    <button id="btnEmpate" style="background:#ffcc00">⚖️ Empatou</button>
-  </div>
-
-  <div id="stats">Histórico: 0 acertos / 0 erros / 0 empates (0%)</div>
-  <div id="log"></div>
-</div>
 
 <script>
-const canvas=document.getElementById('canvas');
-const ctx=canvas.getContext('2d');
-const overlay=document.getElementById('overlay');
-const octx=overlay.getContext('2d');
-const statusEl=document.getElementById('status');
-const patternEl=document.getElementById('pattern');
-const confEl=document.getElementById('conf');
-const nextRecEl=document.getElementById('nextRec');
-const statsEl=document.getElementById('stats');
-const logEl=document.getElementById('log');
-const intervalInput=document.getElementById('intervalInput');
-
-let acertos=0,erros=0,empates=0;
-let weights={player:1,banker:1,tie:1};
-let lastRecommendation="—";
-let autoRunning=false,autoTimer=null;
-
-function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
-
-function colorRole(r,g,b){
-  if(r>170&&g<90&&b<90)return"banker"; // vermelho
-  if(b>150&&r<100&&g<120)return"player"; // azul
-  if(r>180&&g>180&&b<100)return"tie"; // amarelo
-  return null;
-}
-
-function detect(frame,w,h){
-  const data=frame.data,points=[],step=6;
-  for(let y=0;y<h;y+=step){
-    for(let x=0;x<w;x+=step){
-      const i=(y*w+x)*4;
-      const role=colorRole(data[i],data[i+1],data[i+2]);
-      if(role)points.push({x,y,role});
-    }
-  }
-  const clusters=[];
-  const dist=10;
-  points.forEach(p=>{
-    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
-    if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;}
-    else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
-  });
-  return clusters;
-}
-
-function analyze(blobs){
-  const seq=blobs.map(b=>b.role);
-  if(seq.length===0)return{name:"Sem padrão visível",conf:0};
-  const s=seq.join("-");
-  if(/(player-){3,}/.test(s))return{name:"Domínio Player",conf:0.9};
-  if(/(banker-){3,}/.test(s))return{name:"Domínio Banker",conf:0.9};
-  if(seq.every((x,i,a)=>i===0||x!==a[i-1]))return{name:"Alternância",conf:0.85};
-  if(seq.includes("tie"))return{name:"Empates frequentes",conf:0.7};
-  return{name:"Padrão neutro",conf:0.55};
-}
-
-function predictNext(){
-  const entries=Object.entries(weights);
-  const rec=entries.reduce((a,b)=>a[1]>b[1]?a:b)[0];
-  return rec;
-}
-
-function updateStats(){
-  const total=acertos+erros+empates;
-  const perc=total?Math.round(acertos/total*100):0;
-  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
-}
-
-function registrar(tipo){
-  if(tipo==="acerto"){acertos++;weights[lastRecommendation]++;}
-  if(tipo==="erro"){erros++;weights[lastRecommendation]=Math.max(1,weights[lastRecommendation]-1);}
-  if(tipo==="empate"){empates++;weights["tie"]++;}
-  updateStats();
-  analyzeCurrentImage(); // reanalisar e recomendar
-}
-
-function drawOverlay(blobs){
-  octx.clearRect(0,0,overlay.width,overlay.height);
-  blobs.forEach(b=>{
-    octx.beginPath();
-    octx.arc(b.x,b.y,8,0,Math.PI*2);
-    octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
-    octx.lineWidth=2;
-    octx.stroke();
-  });
-}
-
-function log(msg){const t=new Date().toLocaleTimeString();logEl.innerHTML=`[${t}] ${msg}<br>`+logEl.innerHTML;}
-
-function analyzeCurrentImage(){
-  if(!canvas.width)return;
-  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-  const blobs=detect(frame,canvas.width,canvas.height);
-  drawOverlay(blobs);
-  const p=analyze(blobs);
-  patternEl.innerText=p.name;
-  confEl.innerText=Math.round(p.conf*100)+"%";
-  const rec=predictNext();
-  nextRecEl.innerText=rec==="player"?"🔵 Player":rec==="banker"?"🔴 Banker":"🟡 Empate";
-  lastRecommendation=rec;
-  log(`Padrão: ${p.name} | Recomendação: ${lastRecommendation}`);
-  statusEl.innerText="Analisando imagem...";
-}
-
-function startAutoAnalysis(){
-  if(autoRunning)return;
-  const interval=Number(intervalInput.value)*1000;
-  autoTimer=setInterval(()=>{analyzeCurrentImage();},interval);
-  autoRunning=true;
-  statusEl.innerText=`Análise contínua ativa (${interval/1000}s)`;
-  log("Análise contínua iniciada.");
-}
-
-function stopAutoAnalysis(){
-  if(autoTimer){clearInterval(autoTimer);}
-  autoRunning=false;
-  statusEl.innerText="Parado";
-  log("Análise contínua parada.");
-}
-
-// --- Eventos ---
-document.getElementById('sendImg').onclick=()=>{
-  const input=document.createElement('input');
-  input.type='file';
-  input.accept='image/*';
-  input.onchange=e=>{
-    const file=e.target.files[0];
-    if(!file)return;
-    const img=new Image();
-    img.onload=()=>{
-      resizeCanvas(img.width,img.height);
-      ctx.drawImage(img,0,0,canvas.width,canvas.height);
-      analyzeCurrentImage();
-    };
-    img.src=URL.createObjectURL(file);
-  };
-  input.click();
+const log = msg => {
+  const el = document.getElementById('log');
+  el.textContent += msg + "\\n";
+  el.scrollTop = el.scrollHeight;
 };
 
-document.getElementById('btnAcertou').onclick=()=>registrar("acerto");
-document.getElementById('btnErrou').onclick=()=>registrar("erro");
-document.getElementById('btnEmpate').onclick=()=>registrar("empate");
-document.getElementById('toggleAuto').onclick=()=>autoRunning?stopAutoAnalysis():startAutoAnalysis();
-document.getElementById('stopBtn').onclick=stopAutoAnalysis;
+let historyData = JSON.parse(localStorage.getItem('bacbo_history') || '[]');
+let weights = JSON.parse(localStorage.getItem('bacbo_weights') || '{"rep":1,"trend":1,"color":1}');
+let stats = JSON.parse(localStorage.getItem('bacbo_stats') || '{"hits":0,"tries":0}');
+
+// ======================= OCR =======================
+document.getElementById('runOCR').onclick = async () => {
+  const file = document.getElementById('fileInput').files[0];
+  if(!file) return alert('Escolha uma imagem!');
+  log('Lendo imagem... (OCR)');
+  try {
+    const { data: { text } } = await Tesseract.recognize(file, 'por');
+    const numbers = Array.from(text.matchAll(/\\b([3-9]|1[0-8])\\b/g)).map(m=>parseInt(m[1]));
+    log('Números detectados: ' + numbers.join(', '));
+    document.getElementById('manualInput').value = numbers.join('-azul,') + '-azul';
+    alert('OCR concluído. Verifique os números extraídos.');
+  } catch(e) {
+    log('Erro OCR: ' + e.message);
+  }
+};
+
+// ======================= ANÁLISE =======================
+function analyze() {
+  const input = document.getElementById('manualInput').value.trim();
+  if(!input) return alert('Insira dados primeiro.');
+
+  const entries = input.split(/[,\\n]+/).map(s => s.trim());
+  for(let e of entries){
+    const [numStr, colorRaw] = e.split(/[-:]/);
+    const num = parseInt(numStr);
+    const color = (colorRaw||'').toLowerCase();
+    if(num>=3 && num<=18 && ['azul','vermelho','amarelo'].includes(color))
+      historyData.push({num,color});
+  }
+  if(historyData.length > 200) historyData = historyData.slice(-200);
+  localStorage.setItem('bacbo_history', JSON.stringify(historyData));
+  renderHistory();
+  recommendNext();
+}
+
+document.getElementById('analyzeBtn').onclick = analyze;
+
+// ======================= RECOMENDAÇÃO =======================
+function recommendNext(){
+  if(historyData.length < 4){
+    document.getElementById('recommendation').textContent = '—';
+    document.getElementById('explanation').textContent = 'Poucos dados para análise.';
+    return;
+  }
+
+  const last = historyData.slice(-1)[0];
+  const nums = historyData.map(x=>x.num);
+  const colors = historyData.map(x=>x.color);
+
+  // detectar repetição de número
+  const repScore = {};
+  for(let i=3;i<=18;i++){
+    const count = nums.filter(x=>x===i).length;
+    repScore[i] = 1/(count+1);
+  }
+
+  // detectar tendência (média móvel)
+  const avg = nums.slice(-10).reduce((a,b)=>a+b,0)/Math.min(nums.length,10);
+  let trend = avg>11 ? 'Alta' : avg<9 ? 'Baixa' : 'Neutra';
+  document.getElementById('trend').textContent = trend;
+
+  // cor mais frequente
+  const colorFreq = {azul:0,vermelho:0,amarelo:0};
+  colors.forEach(c=>colorFreq[c]++);
+  const colorNext = Object.entries(colorFreq).sort((a,b)=>a[1]-b[1])[0][0]; // menos frequente
+
+  // combinação ponderada
+  const nextNum = Object.entries(repScore).sort((a,b)=>b[1]-a[1])[0][0];
+  const explanation = `
+Últimas rodadas: ${nums.slice(-10).join(', ')}
+Tendência detectada: ${trend}
+Cor menos frequente: ${colorNext}
+Maior potencial de repetição reversa: ${nextNum}
+Pesos atuais: ${JSON.stringify(weights, null, 2)}
+  `.trim();
+
+  document.getElementById('recommendation').textContent = `${nextNum} (${colorNext})`;
+  document.getElementById('explanation').textContent = explanation;
+}
+
+// ======================= RENDER =======================
+function renderHistory(){
+  const h = document.getElementById('history');
+  h.innerHTML = '';
+  historyData.slice(-60).forEach(e=>{
+    const d = document.createElement('div');
+    d.className = 'chip ' + (e.color==='azul'?'blue':e.color==='vermelho'?'red':'yellow');
+    d.textContent = e.num;
+    h.appendChild(d);
+  });
+}
+
+// ======================= FEEDBACK =======================
+function feedback(type){
+  stats.tries++;
+  if(type==='acerto') stats.hits++;
+
+  // aprendizado simples
+  if(type==='acerto'){ weights.rep*=1.03; weights.color*=1.02; }
+  if(type==='erro'){ weights.rep*=0.97; weights.color*=0.95; }
+  if(type==='empate'){ weights.trend*=1.01; }
+
+  for(let k in weights)
+    weights[k] = Math.max(0.3, Math.min(3, weights[k]));
+
+  localStorage.setItem('bacbo_weights', JSON.stringify(weights));
+  localStorage.setItem('bacbo_stats', JSON.stringify(stats));
+  recommendNext();
+}
+
+document.getElementById('btnAcerto').onclick = ()=>feedback('acerto');
+document.getElementById('btnErro').onclick = ()=>feedback('erro');
+document.getElementById('btnEmpate').onclick = ()=>feedback('empate');
+document.getElementById('btnReset').onclick = ()=>{
+  if(confirm('Resetar tudo?')){
+    localStorage.clear();
+    historyData = [];
+    renderHistory();
+    document.getElementById('explanation').textContent = '';
+    document.getElementById('recommendation').textContent = '—';
+  }
+};
+
+// inicialização
+renderHistory();
+recommendNext();
 </script>
 </body>
 </html>
