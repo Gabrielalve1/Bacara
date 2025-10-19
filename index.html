@@ -7,7 +7,7 @@
 <style>
 body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
 #controls,#results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
-canvas{border-radius:10px}
+canvas{border-radius:10px;background:#000}
 #panel{width:90%;max-width:920px;background:#0d171c;padding:12px;border-radius:10px;margin-top:10px}
 button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
 button.primary{background:#00ffc3;color:#000;font-weight:bold}
@@ -26,8 +26,8 @@ button.alt{background:#1a2426;color:#fff}
 </div>
 
 <div>
-  <canvas id="canvas"></canvas>
-  <canvas id="overlay"></canvas>
+  <canvas id="canvas" width="640" height="480"></canvas>
+  <canvas id="overlay" width="640" height="480"></canvas>
 </div>
 
 <div id="panel">
@@ -193,10 +193,14 @@ async function runFrame(){
 async function startCam(){
   try{
     stopAll();
-    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    video.srcObject=stream;
-    video.onloadedmetadata=()=>{resizeCanvas(video.videoWidth,video.videoHeight);running=true;statusEl.innerText="Câmera Ativa";runFrame();};
-  }catch(e){alert(e);}
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    video.srcObject = stream;
+    await video.play(); // garante que o vídeo carregou
+    resizeCanvas(video.videoWidth || 640, video.videoHeight || 480);
+    running = true;
+    statusEl.innerText = "Câmera Ativa";
+    runFrame();
+  } catch(e){alert(e);}
 }
 
 function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}octx.clearRect(0,0,overlay.width,overlay.height);}
