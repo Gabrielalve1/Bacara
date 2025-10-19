@@ -1,26 +1,47 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BacBo Analyzer — ProCode++ Omega X.∞ Assertivo</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BacBo Analyzer — ProCode++ Omega (Modo Contínuo)</title>
 <style>
-body { margin:0;font-family:Arial,sans-serif;background:#0a1217;color:#e8f9f3;display:flex;flex-direction:column;align-items:center;padding:12px;}
-h1 { color:#00ffc3;margin-bottom:10px;}
-#panel { background:#0e1a20;border-radius:10px;padding:12px;width:90%;max-width:900px; }
-button { border:none;border-radius:8px;padding:8px 12px;margin:4px;cursor:pointer;font-size:14px;}
-button.primary { background:#00ffc3;color:#000;font-weight:bold; }
-button.alt { background:#18252b;color:#fff;}
-canvas { border-radius:10px;margin-top:8px;max-width:90%; }
-#results { display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:10px; }
-#stats { margin-top:10px;font-size:14px;color:#8ff; }
-#log { font-size:13px;color:#ccc;margin-top:10px;max-height:150px;overflow-y:auto;background:#091216;padding:5px;border-radius:8px; }
-#intervalSet { margin-top:10px; }
-.predictions { margin-top:6px;font-size:14px;color:#ffcc00;}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0a1217;
+  color: #e8f9f3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+}
+h1 { color: #00ffc3; margin-bottom: 10px; }
+#panel {
+  background: #0e1a20;
+  border-radius: 10px;
+  padding: 12px;
+  width: 90%;
+  max-width: 900px;
+}
+button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button.primary { background: #00ffc3; color: #000; font-weight: bold; }
+button.alt { background: #18252b; color: #fff; }
+canvas { border-radius: 10px; margin-top: 8px; max-width: 90%; }
+#results { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+#stats { margin-top: 10px; font-size: 14px; color: #8ff; }
+#log { font-size: 13px; color: #ccc; margin-top: 10px; max-height: 150px; overflow-y: auto; background:#091216; padding:5px; border-radius:8px; }
+#intervalSet { margin-top: 10px; }
 </style>
 </head>
 <body>
-<h1>🔮 BacBo Analyzer — Omega X.∞ Assertivo</h1>
+<h1>🔮 BacBo Analyzer — ProCode++ Omega (Modo Contínuo)</h1>
 
 <div>
   <button id="sendImg" class="alt">📸 Enviar Gráfico</button>
@@ -36,7 +57,6 @@ canvas { border-radius:10px;margin-top:8px;max-width:90%; }
   <div><b>Padrão:</b> <span id="pattern">—</span></div>
   <div><b>Confiança:</b> <span id="conf">0%</span></div>
   <div><b>Recomendação:</b> <span id="nextRec">—</span></div>
-  <div class="predictions"><b>Próximos 3:</b> <span id="next3">—</span></div>
 
   <div id="intervalSet">
     <label>Intervalo (segundos): </label>
@@ -62,105 +82,111 @@ const statusEl=document.getElementById('status');
 const patternEl=document.getElementById('pattern');
 const confEl=document.getElementById('conf');
 const nextRecEl=document.getElementById('nextRec');
-const next3El=document.getElementById('next3');
 const statsEl=document.getElementById('stats');
 const logEl=document.getElementById('log');
 const intervalInput=document.getElementById('intervalInput');
 
 let acertos=0,erros=0,empates=0;
+let weights={player:1,banker:1,tie:1};
 let lastRecommendation="—";
 let autoRunning=false,autoTimer=null;
 
-// Histórico e aprendizado
-let history=[];
-let weights={player:1,banker:1,tie:1};
-let markov={player:{player:1,banker:1,tie:1}, banker:{player:1,banker:1,tie:1}, tie:{player:1,banker:1,tie:1}};
-
+// --- Canvas ---
 function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
-function colorRole(r,g,b){if(r>170&&g<90&&b<90)return"banker";if(b>150&&r<100&&g<120)return"player";if(r>180&&g>180&&b<100)return"tie";return null;}
+function colorRole(r,g,b){
+  if(r>170&&g<90&&b<90)return"banker"; 
+  if(b>150&&r<100&&g<120)return"player"; 
+  if(r>180&&g>180&&b<100)return"tie"; 
+  return null;
+}
 
+// --- Detecção ---
 function detect(frame,w,h){
   const data=frame.data,points=[],step=6;
-  for(let y=0;y<h;y+=step){for(let x=0;x<w;x+=step){const i=(y*w+x)*4;const role=colorRole(data[i],data[i+1],data[i+2]);if(role)points.push({x,y,role});}}
-  const clusters=[];const dist=10;
-  points.forEach(p=>{let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;}else clusters.push({x:p.x,y:p.y,role:p.role,n:1});});
+  for(let y=0;y<h;y+=step){
+    for(let x=0;x<w;x+=step){
+      const i=(y*w+x)*4;
+      const role=colorRole(data[i],data[i+1],data[i+2]);
+      if(role)points.push({x,y,role});
+    }
+  }
+  const clusters=[];
+  const dist=10;
+  points.forEach(p=>{
+    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
+    if(f){f.x=(f.x*f.n+p.x)/(f.n+1);f.y=(f.y*f.n+p.y)/(f.n+1);f.n++;}
+    else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
+  });
   return clusters;
 }
 
+// --- Análise ---
 function analyze(blobs){
   const seq=blobs.map(b=>b.role);
-  if(seq.length===0)return{name:"Sem padrão visível",conf:0,freqs:{player:0,banker:0,tie:0}};
+  if(seq.length===0)return{name:"Sem padrão visível",conf:0};
   const s=seq.join("-");
-  let conf=0.5,name="Padrão neutro";
-  if(/(player-){3,}/.test(s)){name="Domínio Player"; conf=0.92;}
-  if(/(banker-){3,}/.test(s)){name="Domínio Banker"; conf=0.92;}
-  if(seq.every((x,i,a)=>i===0||x!==a[i-1])){name="Alternância"; conf=0.87;}
-  if(seq.includes("tie")){name="Empates frequentes"; conf=0.7;}
-  const freqs={player:0,banker:0,tie:0};
-  seq.forEach((v,i)=>freqs[v]+=(1+(i/seq.length)));
-  return {name:name,conf:conf,freqs:freqs,last:seq[seq.length-1]};
+  if(/(player-){3,}/.test(s))return{name:"Domínio Player",conf:0.9};
+  if(/(banker-){3,}/.test(s))return{name:"Domínio Banker",conf:0.9};
+  if(seq.every((x,i,a)=>i===0||x!==a[i-1]))return{name:"Alternância",conf:0.85};
+  if(seq.includes("tie"))return{name:"Empates frequentes",conf:0.7};
+  return{name:"Padrão neutro",conf:0.55};
 }
 
-// Predição com Markov + pesos
-function predictNext(last,freqs){
-  let combined={player:weights.player*freqs.player,banker:weights.banker*freqs.banker,tie:weights.tie*freqs.tie};
-  if(last && markov[last]){
-    Object.keys(markov[last]).forEach(k=>{combined[k]+=markov[last][k]*0.7;});
-  }
-  let sorted=Object.entries(combined).sort((a,b)=>b[1]-a[1]);
-  return {next:sorted[0][0],next3:sorted.slice(0,3)};
+// --- Previsão ---
+function predictNext(){
+  const entries=Object.entries(weights);
+  const rec=entries.reduce((a,b)=>a[1]>b[1]?a:b)[0];
+  return rec;
 }
 
-function updateMarkov(prev,next){
-  if(prev){markov[prev][next]=(markov[prev][next]||1)+1;}
-}
-
+// --- Estatísticas ---
 function updateStats(){
   const total=acertos+erros+empates;
   const perc=total?Math.round(acertos/total*100):0;
   statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
 }
 
+// --- Registro feedbacks ---
 function registrar(tipo){
-  if(tipo==="acerto"){acertos++; weights[lastRecommendation]+=1;}
-  if(tipo==="erro"){erros++; weights[lastRecommendation]=Math.max(1,weights[lastRecommendation]-1);}
-  if(tipo==="empate"){empates++; weights["tie"]+=1;}
-  updateStats(); analyzeCurrentImage();
+  if(tipo==="acerto"){acertos++;weights[lastRecommendation]++;}
+  if(tipo==="erro"){erros++;weights[lastRecommendation]=Math.max(1,weights[lastRecommendation]-1);}
+  if(tipo==="empate"){empates++;weights["tie"]++;}
+  updateStats();
+  analyzeCurrentImage(); // ⚡ Recomenda imediatamente após feedback
 }
 
+// --- Overlay ---
 function drawOverlay(blobs){
   octx.clearRect(0,0,overlay.width,overlay.height);
-  blobs.forEach(b=>{octx.beginPath();octx.arc(b.x,b.y,8,0,Math.PI*2);octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";octx.lineWidth=2;octx.stroke();});
+  blobs.forEach(b=>{
+    octx.beginPath();
+    octx.arc(b.x,b.y,8,0,Math.PI*2);
+    octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
+    octx.lineWidth=2;
+    octx.stroke();
+  });
 }
 
+// --- Logs ---
 function log(msg){const t=new Date().toLocaleTimeString();logEl.innerHTML=`[${t}] ${msg}<br>`+logEl.innerHTML;}
 
-let lastDetected=null;
-
+// --- Análise principal ---
 function analyzeCurrentImage(){
   if(!canvas.width)return;
   const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
   const blobs=detect(frame,canvas.width,canvas.height);
   drawOverlay(blobs);
-  
-  const analysis=analyze(blobs);
-  patternEl.innerText=analysis.name;
-  confEl.innerText=Math.round(analysis.conf*100)+"%";
-  
-  const prediction=predictNext(analysis.last,analysis.freqs);
-  nextRecEl.innerText=prediction.next==="player"?"🔵 Player":prediction.next==="banker"?"🔴 Banker":"🟡 Empate";
-  next3El.innerText=prediction.next3.map(x=>x[0]==="player"?"🔵":x[0]==="banker"?"🔴":"🟡").join(" | ");
-  
-  if(lastDetected)updateMarkov(lastDetected,analysis.last);
-  lastDetected=analysis.last;
-  
-  lastRecommendation=prediction.next;
-  history.push({timestamp:Date.now(),pattern:analysis.name,recommendation:prediction.next});
-  
-  log(`Padrão: ${analysis.name} | Próximo: ${prediction.next} | Top3: ${prediction.next3.map(x=>x[0]).join(", ")}`);
+  const p=analyze(blobs);
+  patternEl.innerText=p.name;
+  confEl.innerText=Math.round(p.conf*100)+"%";
+  const rec=predictNext();
+  nextRecEl.innerText=rec==="player"?"🔵 Player":rec==="banker"?"🔴 Banker":"🟡 Empate";
+  lastRecommendation=rec;
+  log(`Padrão: ${p.name} | Recomendação: ${lastRecommendation}`);
   statusEl.innerText="Analisando imagem...";
 }
 
+// --- Auto análise contínua ---
 function startAutoAnalysis(){
   if(autoRunning)return;
   const interval=Number(intervalInput.value)*1000;
@@ -169,16 +195,26 @@ function startAutoAnalysis(){
   statusEl.innerText=`Análise contínua ativa (${interval/1000}s)`;
   log("Análise contínua iniciada.");
 }
+function stopAutoAnalysis(){
+  if(autoTimer){clearInterval(autoTimer);}
+  autoRunning=false;
+  statusEl.innerText="Parado";
+  log("Análise contínua parada.");
+}
 
-function stopAutoAnalysis(){if(autoTimer){clearInterval(autoTimer);} autoRunning=false; statusEl.innerText="Parado"; log("Análise contínua parada.");}
-
-// Eventos
+// --- Eventos ---
 document.getElementById('sendImg').onclick=()=>{
-  const input=document.createElement('input'); input.type='file'; input.accept='image/*';
+  const input=document.createElement('input');
+  input.type='file';
+  input.accept='image/*';
   input.onchange=e=>{
-    const file=e.target.files[0]; if(!file)return;
-    const img=new Image(); img.onload=()=>{
-      resizeCanvas(img.width,img.height); ctx.drawImage(img,0,0,canvas.width,canvas.height); analyzeCurrentImage();
+    const file=e.target.files[0];
+    if(!file)return;
+    const img=new Image();
+    img.onload=()=>{
+      resizeCanvas(img.width,img.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      analyzeCurrentImage();
     };
     img.src=URL.createObjectURL(file);
   };
