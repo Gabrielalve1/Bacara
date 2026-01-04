@@ -1,239 +1,63 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Baccarat ProCode++ Omega Consultor</title>
-<style>
-body{margin:0;background:#0b1419;color:#e9f9f3;font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
-#controls,#results{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
-canvas{border-radius:10px;background:#000}
-#panel{width:90%;max-width:920px;background:#0d171c;padding:12px;border-radius:10px;margin-top:10px}
-button{border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
-button.primary{background:#00ffc3;color:#000;font-weight:bold}
-button.alt{background:#1a2426;color:#fff}
-#explanation{white-space:pre-line;margin-top:6px;font-size:13px;color:#00ffc3;}
-</style>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.9.0/dist/tf.min.js"></script>
-</head>
-<body>
-<h1>🔮 Baccarat ProCode++ Omega Consultor</h1>
+import { NextResponse } from "next/server";
+import { updateState, getState } from "@/lib/state";
 
-<div id="controls">
-  <button id="startCam" class="alt">📷 Câmera</button>
-  <button id="sendImg" class="alt">📸 Enviar Foto</button>
-  <button id="stopBtn" class="alt">⛔ Parar</button>
-</div>
-
-<div>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <canvas id="overlay" width="640" height="480"></canvas>
-</div>
-
-<div id="panel">
-  <div><b>Status:</b> <span id="status">Parado</span></div>
-  <div><b>Padrão:</b> <span id="pattern">—</span></div>
-  <div><b>Confiança:</b> <span id="conf">0%</span></div>
-  <div><b>Próxima Recomendação:</b> <span id="nextRec">—</span></div>
-  <div id="results">
-    <button id="btnAcertou" style="background:#00ff66">✅ Acertou</button>
-    <button id="btnErrou" style="background:#ff3366">❌ Errou</button>
-    <button id="btnEmpate" style="background:#ffcc00">⚖️ Empatou</button>
-  </div>
-  <div id="stats">Histórico: 0 acertos / 0 erros / 0 empates (0%)</div>
-  <div id="warning"></div>
-  <div id="explanation"></div>
-</div>
-
-<script type="module">
-const canvas=document.getElementById('canvas'), ctx=canvas.getContext('2d');
-const overlay=document.getElementById('overlay'), octx=overlay.getContext('2d');
-const statusEl=document.getElementById('status'), confEl=document.getElementById('conf');
-const nextRecEl=document.getElementById('nextRec'), statsEl=document.getElementById('stats');
-const warningEl=document.getElementById('warning'), patternEl=document.getElementById('pattern');
-const explanationEl=document.getElementById('explanation');
-
-let video=document.createElement('video'); video.autoplay=true; video.playsInline=true;
-let stream=null,running=false;
-let acertos=0,erros=0,empates=0;
-let feedbackHistory=[], sequenceHistory=[];
-
-// Mapas de classe
-const classMap={"player":0,"banker":1,"tie":2};
-const invClassMap={0:"player",1:"banker",2:"tie"};
-
-// CNN + LSTM simples para demonstração
-const model=tf.sequential();
-model.add(tf.layers.conv2d({inputShape:[64,64,3],filters:16,kernelSize:3,activation:'relu'}));
-model.add(tf.layers.maxPooling2d({poolSize:2}));
-model.add(tf.layers.flatten());
-model.add(tf.layers.repeatVector({n:5}));
-model.add(tf.layers.lstm({units:32}));
-model.add(tf.layers.dense({units:3,activation:'softmax'}));
-model.compile({optimizer:'adam',loss:'categoricalCrossentropy'});
-
-// Funções auxiliares
-function resizeCanvas(w,h){canvas.width=w;canvas.height=h;overlay.width=w;overlay.height=h;}
-function preprocess(frame){return tf.tidy(()=>tf.browser.fromPixels(frame).resizeBilinear([64,64]).toFloat().div(255).expandDims(0));}
-
-// Detecção simples por cor
-function colorRole(r,g,b){
-  if(r>170&&g<80&&b<80)return"banker";
-  if(b>150&&r<80&&g<100)return"player";
-  if(r>180&&g>180&&b<140)return"tie";
-  return null;
+/**
+ * Simulação da leitura da imagem.
+ * Na próxima etapa ligamos com IA de visão.
+ */
+function extractSequenceFromImage(): ("AZUL"|"VERMELHO"|"EMPATE")[] {
+  // TEMPORÁRIO: exemplo
+  return ["AZUL", "AZUL", "VERMELHO"];
 }
 
-function detect(frame,w,h){
-  const data=frame.data, points=[], step=5;
-  for(let y=0;y<h;y+=step)for(let x=0;x<w;x+=step){
-    const i=(y*w+x)*4, role=colorRole(data[i],data[i+1],data[i+2]);
-    if(role) points.push({x,y,role});
-  }
-  const clusters=[], dist=10;
-  points.forEach(p=>{
-    let f=clusters.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<dist&&c.role===p.role);
-    if(f){f.x=(f.x*f.n+p.x)/(f.n+1); f.y=(f.y*f.n+p.y)/(f.n+1); f.n++;} 
-    else clusters.push({x:p.x,y:p.y,role:p.role,n:1});
-  });
-  return clusters;
-}
+function analyze(state: ReturnType<typeof getState>) {
+  const total =
+    state.counts.AZUL + state.counts.VERMELHO + state.counts.EMPATE || 1;
 
-function drawOverlay(blobs){
-  octx.clearRect(0,0,overlay.width,overlay.height);
-  blobs.forEach(b=>{
-    octx.beginPath();
-    octx.arc(b.x,b.y,8,0,Math.PI*2);
-    octx.strokeStyle=b.role==="player"?"#00ffc3":b.role==="banker"?"#ff3366":"#ffff66";
-    octx.lineWidth=2;octx.stroke();
-  });
-}
-
-// Predição com explicação detalhada
-async function predictNextWithExplanation(frame, seqHistory){
-  const cnnInput = preprocess(frame);
-  const cnnFeatures = model.predict(cnnInput);
-  
-  const seqTensor = tf.tensor([seqHistory.slice(-5).map(r=>{
-    const arr=[0,0,0]; if(r) arr[classMap[r]]=1; return arr;
-  })]);
-  
-  const combined = tf.concat([cnnFeatures, seqTensor.flatten().expandDims(0)],1);
-  const output = tf.layers.dense({units:3,activation:'softmax'}).apply(combined);
-  const arr = output.dataSync();
-  const idx = arr.indexOf(Math.max(...arr));
-  const recommendation = invClassMap[idx];
-  const confidence = arr[idx];
-
-  let explanation = "";
-  const lastSequence = seqHistory.slice(-5).join(", ");
-  explanation += `- Últimas jogadas: [${lastSequence}]\n`;
-  explanation += `- CNN detectou padrões visuais no gráfico.\n`;
-  explanation += `- LSTM avaliou tendência histórica e reforçou a escolha.\n`;
-  explanation += `- Confiança do modelo: ${(confidence*100).toFixed(1)}%.\n`;
-  explanation += `- Recomendação baseada em padrão visual + sequência histórica.`;
-
-  cnnInput.dispose(); seqTensor.dispose(); combined.dispose(); output.dispose();
-  return {recommendation, confidence, explanation};
-}
-
-// Treinamento incremental
-async function train(frame,label){
-  const input=preprocess(frame);
-  const output=tf.tensor([[label===0?1:0,label===1?1:0,label===2?1:0]]);
-  await model.fit(input,output,{epochs:3});
-  input.dispose(); output.dispose();
-}
-
-// Estatísticas
-function atualizarStats(){
-  const total=acertos+erros+empates;
-  const perc=total?Math.round(acertos/total*100):0;
-  statsEl.innerText=`Histórico: ${acertos} acertos / ${erros} erros / ${empates} empates (${perc}%)`;
-}
-
-// Registro de feedback e recomendação contínua com explicação
-async function registrarComExplicacao(tipo){
-  const rec = nextRecEl.innerText;
-  feedbackHistory.push({tipo, recommendation:rec, timestamp:Date.now()});
-
-  if(tipo==="acerto") acertos++;
-  if(tipo==="erro") erros++;
-  if(tipo==="empate") empates++;
-
-  sequenceHistory.push(rec);
-  await train(canvas,classMap[rec]);
-  atualizarStats();
-
-  const next = await predictNextWithExplanation(canvas, sequenceHistory);
-  nextRecEl.innerText = next.recommendation;
-  confEl.innerText = Math.round(next.confidence*100) + "%";
-  patternEl.innerText = "Padrão detectado";
-  explanationEl.innerText = next.explanation;
-}
-
-// Loop principal
-async function runFrame(){
-  if(!running) return;
-  ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
-  drawOverlay(detect(frame,canvas.width,canvas.height));
-
-  const res=await predictNextWithExplanation(canvas,sequenceHistory);
-  nextRecEl.innerText=res.recommendation;
-  confEl.innerText=Math.round(res.confidence*100)+"%";
-  patternEl.innerText="Padrão detectado";
-  explanationEl.innerText=res.explanation;
-  warningEl.innerText=res.confidence<0.6?"⚠️ Gráfico pouco legível":"";
-
-  requestAnimationFrame(runFrame);
-}
-
-// Câmera
-async function startCam(){
-  try{
-    stopAll();
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    video.srcObject = stream;
-    await video.play(); // garante que o vídeo carregou
-    resizeCanvas(video.videoWidth || 640, video.videoHeight || 480);
-    running = true;
-    statusEl.innerText = "Câmera Ativa";
-    runFrame();
-  } catch(e){alert(e);}
-}
-
-function stopAll(){running=false;statusEl.innerText="Parado";if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}octx.clearRect(0,0,overlay.width,overlay.height);}
-
-// Eventos
-document.getElementById('startCam').onclick=startCam;
-document.getElementById('stopBtn').onclick=stopAll;
-document.getElementById('btnAcertou').onclick=()=>registrarComExplicacao("acerto");
-document.getElementById('btnErrou').onclick=()=>registrarComExplicacao("erro");
-document.getElementById('btnEmpate').onclick=()=>registrarComExplicacao("empate");
-
-// Upload de imagem
-document.getElementById('sendImg').onclick=()=>{
-  const input=document.createElement('input');input.type='file';input.accept='image/*';
-  input.onchange=async e=>{
-    const file=e.target.files[0];if(!file)return;
-    const img=new Image();
-    img.onload=async ()=>{
-      resizeCanvas(img.width,img.height);
-      ctx.drawImage(img,0,0,canvas.width,canvas.height);
-      drawOverlay(detect(ctx.getImageData(0,0,canvas.width,canvas.height),canvas.width,canvas.height));
-
-      const res=await predictNextWithExplanation(canvas,sequenceHistory);
-      nextRecEl.innerText=res.recommendation;
-      confEl.innerText=Math.round(res.confidence*100)+"%";
-      patternEl.innerText="Padrão detectado";
-      explanationEl.innerText=res.explanation;
-      statusEl.innerText="Imagem analisada e recomendação pronta";
-    };
-    img.src=URL.createObjectURL(file);
+  const probs = {
+    AZUL: Math.round((state.counts.AZUL / total) * 100),
+    VERMELHO: Math.round((state.counts.VERMELHO / total) * 100),
+    EMPATE: Math.round((state.counts.EMPATE / total) * 100),
   };
-  input.click();
-};
-</script>
-</body>
-</html>
+
+  // regra simples inicial (vamos evoluir)
+  let recommendation: keyof typeof probs = "AZUL";
+  let confidence = probs.AZUL;
+
+  if (probs.VERMELHO > confidence) {
+    recommendation = "VERMELHO";
+    confidence = probs.VERMELHO;
+  }
+  if (probs.EMPATE > confidence) {
+    recommendation = "EMPATE";
+    confidence = probs.EMPATE;
+  }
+
+  return {
+    recommendation,
+    confidence,
+    probabilities: probs,
+  };
+}
+
+export async function POST(req: Request) {
+  // 1) receber imagem (por enquanto ignoramos o conteúdo)
+  // depois vamos processar de verdade
+  await req.formData();
+
+  // 2) extrair sequência da imagem
+  const sequence = extractSequenceFromImage();
+
+  // 3) atualizar estado
+  const state = updateState(sequence);
+
+  // 4) analisar
+  const result = analyze(state);
+
+  return NextResponse.json({
+    status: "ok",
+    sequenceAdded: sequence,
+    state,
+    result,
+  });
+}
