@@ -1,1 +1,122 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bacara AI – Analisador em Tempo Real</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0b0b;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .box {
+      max-width: 420px;
+      margin: auto;
+      background: #151515;
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    input, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+    }
+
+    button {
+      background: #1e90ff;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #555;
+    }
+
+    .result {
+      margin-top: 20px;
+      background: #0f0f0f;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .highlight {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>🎯 Bacara AI</h1>
+
+  <div class="box">
+    <label>📷 Envie a imagem do gráfico</label>
+    <input type="file" id="image" accept="image/*" />
+
+    <button id="btn" onclick="analyze()">Analisar</button>
+
+    <div class="result" id="output">Aguardando análise…</div>
+  </div>
+
+  <script>
+    async function analyze() {
+      const fileInput = document.getElementById("image");
+      const output = document.getElementById("output");
+      const btn = document.getElementById("btn");
+
+      if (!fileInput.files.length) {
+        alert("Selecione uma imagem do gráfico.");
+        return;
+      }
+
+      btn.disabled = true;
+      output.textContent = "🔍 Analisando gráfico…";
+
+      const formData = new FormData();
+      formData.append("image", fileInput.files[0]);
+
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+
+        output.textContent =
+          "📊 RESULTADO DA IA\n\n" +
+          "Recomendação: " + data.result.recommendation + "\n" +
+          "Confiança: " + data.result.confidence + "%\n\n" +
+          "Probabilidades:\n" +
+          "Azul: " + data.result.probabilities.AZUL + "%\n" +
+          "Vermelho: " + data.result.probabilities.VERMELHO + "%\n" +
+          "Empate: " + data.result.probabilities.EMPATE + "%\n\n" +
+          "Histórico total analisado: " + data.state.history.length;
+
+      } catch (err) {
+        output.textContent = "❌ Erro ao analisar. Verifique a API.";
+        console.error(err);
+      }
+
+      btn.disabled = false;
+    }
+  </script>
+
+</body>
+</html>
