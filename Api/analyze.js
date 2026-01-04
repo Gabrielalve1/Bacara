@@ -1,4 +1,6 @@
 
+export const runtime = "nodejs";
+
 import { analyzeImage } from "../Lib/vision.js";
 import { state } from "../Lib/state.js";
 
