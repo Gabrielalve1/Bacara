@@ -1,25 +1,40 @@
 
-<script>
-  async function analyze() {
-    const output = document.getElementById("output");
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Teste Bacara AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
 
-    // TESTE VISUAL IMEDIATO
-    output.textContent = "👉 Botão clicado. Chamando API...";
+<body style="background:#000;color:#fff;padding:20px;font-family:Arial">
 
-    try {
-      const res = await fetch("/api/analyze", {
-        method: "POST"
-      });
+  <h1>Teste Frontend</h1>
 
-      const data = await res.json();
+  <button id="btn">CLIQUE AQUI</button>
 
-      output.textContent =
-        "✅ RESPOSTA DA API\n\n" +
-        JSON.stringify(data, null, 2);
+  <pre id="output" style="margin-top:20px;"></pre>
 
-    } catch (err) {
-      output.textContent = "❌ ERRO NO FETCH";
-      console.error(err);
-    }
-  }
-</script>
+  <script>
+    document.getElementById("btn").addEventListener("click", async () => {
+      const output = document.getElementById("output");
+
+      output.textContent = "👉 Clique detectado no JavaScript";
+
+      try {
+        const res = await fetch("/api/analyze", { method: "POST" });
+        const data = await res.json();
+
+        output.textContent =
+          "✅ API RESPONDEU:\n\n" +
+          JSON.stringify(data, null, 2);
+
+      } catch (e) {
+        output.textContent = "❌ ERRO NO FETCH";
+        console.error(e);
+      }
+    });
+  </script>
+
+</body>
+</html>
